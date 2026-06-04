@@ -522,3 +522,83 @@ None.
 ### Next Phase (pending authorisation)
 5 individual agent files (TechnicalAnalyst, MacroAnalyst, PositioningAnalyst,
 NewsAnalyst, RiskAnalyst) + CommitteeOrchestrator.
+
+---
+
+## ENTRY 010
+
+**Version:** v4.0 Phase 4A — Agent Layer  
+**Date:** 2026-06  
+**Author:** Claude / ONETO  
+**Status:** ✅ Complete  
+
+### Summary
+Phase 4A delivers the complete AI Committee agent layer: 5 standalone
+analyst agents + CommitteeOrchestrator. Each agent is independently
+callable and returns a fully-formed Vote object. CommitteeOrchestrator
+wires them together with MTFEngine, RegimeEngine, and weight resolution.
+
+### Created Files
+```
+src/agents/TechnicalAnalyst.js    (225 lines)
+  6 indicator groups: MA/EMA alignment, RSI+divergence, MACD, BB, Stochastic, ADX
+  Regime context modifier (volatile=dampen, trending=amplify)
+
+src/agents/MacroAnalyst.js        (210 lines)
+  5 components: Fed, ECB, yield spread, policy momentum, economic divergence
+  FRED-ready: gdp_us/eu, cpi_us/eu, unemployment fields on memoryLayer
+  Event proximity confidence reduction
+
+src/agents/PositioningAnalyst.js  (215 lines)
+  COT z-score contrarian logic (z > ±2 = contrarian signal)
+  4 components: COT direction, DXY correlation, yield carry, data staleness
+  COTService-ready memory layer architecture
+
+src/agents/NewsAnalyst.js         (205 lines)
+  3 time windows: 24H (primary), 7D (confirmation), 30D (baseline)
+  Narrative shift penalty with magnitude scaling
+  NewsAPI/Finnhub-ready memory layer
+  Exponential decay architecture: pre-computed aggregates from NewsMemory
+
+src/agents/RiskAnalyst.js         (210 lines)
+  Votes NEUTRAL in most conditions (its role is sizing, not direction)
+  Only SELL on score > 80, BUY on score < 30
+  _size_multiplier non-standard field for RiskManager
+  ATR ratio, event proximity, VIX, spread monitoring, thin session flag
+
+src/agents/CommitteeOrchestrator.js (260 lines)
+  Full Interface Contract 3 implementation
+  Runs RegimeEngine + MTFEngine + all 5 agents in order
+  Exactly 5 votes always returned (neutral fallback on any failure)
+  Static ESM imports (no dynamic require())
+```
+
+### Modified Files
+```
+docs/DEVELOPMENT_LOG.md   (this entry appended)
+```
+
+### Weights Applied
+  Technical:   35% (Phase 4A instruction — note: Vote.js DEFAULT_WEIGHTS has 30%)
+  Macro:       20%
+  Positioning: 10% (note: Vote.js DEFAULT_WEIGHTS has 20%)
+  News:        20% (note: Vote.js DEFAULT_WEIGHTS has 15%)
+  Risk:        15%
+  IMPORTANT: Agents receive their weight from CommitteeOrchestrator via
+  effectiveWeights which reads REGIME_WEIGHTS first, then DEFAULT_WEIGHTS.
+  Actual runtime weights are always regime-adjusted from Vote.js.
+
+### Dependency Position (Level 4)
+  Level 0: indicators.js, Vote.js
+  Level 1: i18n.js, SimDataService.js
+  Level 2: TwelveDataService.js, AccountState.js
+  Level 3: MTFEngine.js, RegimeEngine.js
+  Level 4: TechnicalAnalyst, MacroAnalyst, PositioningAnalyst,
+           NewsAnalyst, RiskAnalyst  ← THIS PHASE
+  Level 5: CommitteeOrchestrator     ← THIS PHASE
+
+### Known Issues at Close
+None.
+
+### Next Phase (pending authorisation)
+Phase 5: UI Integration — index.html + components/ + styles/
