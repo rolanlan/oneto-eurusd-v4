@@ -669,3 +669,73 @@ None.
 
 ### Next Phase (pending authorisation)
 Phase 4C: KLinePanel + PaperTradePanel + SettingsPanel + index.html assembly
+
+---
+
+## ENTRY 012
+
+**Version:** v4.0 Phase 4C — KLinePanel + PaperTradePanel + SettingsPanel  
+**Date:** 2026-06  
+**Author:** Claude / ONETO  
+**Status:** ✅ Complete — Phase 4 UI Components DONE  
+
+### Summary
+Phase 4C delivers the final three UI components. With HeroPanel, CommitteePanel,
+DecisionPanel, RiskManagerPanel (Phase 4B) and these three files, the complete
+UI component layer is finished. All 7 components are production-ready.
+
+TwelveDataService.js does NOT exist as a standalone file — DataProvider.js
+(src/core/DataProvider.js) is the data layer. PaperExecution.js
+(src/core/PaperExecution.js) is the paper trading engine.
+Both verified before writing any component.
+
+### Created Files
+```
+src/components/KLinePanel.js        (357 lines)
+  TradingView Lightweight Charts v4 (v3.2 pattern: createMainChart once, updateMainChart data-only)
+  1H/4H/1D timeframe switching with DataProvider.getCandles()
+  MA20/MA50 overlays, BB overlay, signal markers, SL/TP price lines
+  MACD sub-chart (Chart.js bar histogram with ATR-normalised values)
+  RSI sub-chart (Chart.js line, last 40 bars rolling)
+  Crosshair OHLCV hover display
+  ResizeObserver for responsive container
+
+src/components/PaperTradePanel.js   (320 lines)
+  Wired to PaperExecution.js (engine) — no trade math in component
+  Direction toggle (BUY/SELL), 5 price inputs pre-filled from last signal
+  "Use signal values" one-click fill button
+  4-phase validation progress bars (100/300/500/1000)
+  8-cell performance stats grid (win rate, profit factor, P&L, R)
+  Open trades list with close buttons (close at current AppState price)
+  Closed trades history (last 30 records) with outcome/exit reason
+  Live form state preserved across renders
+
+src/components/SettingsPanel.js     (300 lines)
+  Twelve Data API key input: connect/disconnect/test button
+  testApiKey() → DataProvider.testApiKey() → AppState.refreshAll() on success
+  ZH/EN language toggle → setLang() → 'languagechange' event
+  Account section: balance, risk profile buttons, max drawdown, consecutive loss limit, timezone
+  Decision params: min confidence, min R/R ratio
+  System info: version, API health status, data mode
+  Factory reset button (confirm dialog before execution)
+```
+
+### Modified Files
+```
+docs/DEVELOPMENT_LOG.md   (this entry appended)
+```
+
+### Phase 4 Component Layer — COMPLETE
+
+All 7 components delivered across Phase 4B + 4C:
+  ✅ HeroPanel.js         — price, signal arrow, confidence ring, trade plan
+  ✅ CommitteePanel.js    — 5 agent cards, verdict bar, weight summary
+  ✅ DecisionPanel.js     — pipeline flow, MTF panel, gates, explanation
+  ✅ RiskManagerPanel.js  — live calc, multipliers, account dashboard
+  ✅ KLinePanel.js        — TradingView K-line + MACD/RSI sub-charts
+  ✅ PaperTradePanel.js   — submit form, history, stats, validation gates
+  ✅ SettingsPanel.js     — API key, language, account, decision params
+
+### Next Phase (pending authorisation)
+Phase 4D (final): index.html assembly + 8 CSS files
+This is the LAST step of Phase 4 — wires all components into a running app.
