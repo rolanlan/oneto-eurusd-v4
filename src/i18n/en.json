@@ -1,0 +1,263 @@
+{
+  "nav": {
+    "dashboard":  "Dashboard",
+    "committee":  "AI Committee",
+    "decision":   "Decision Engine",
+    "risk":       "Risk Manager",
+    "kline":      "K-Line Chart",
+    "news":       "News Impact",
+    "calendar":   "Economic Calendar",
+    "backtest":   "Backtest",
+    "paper":      "Paper Trading",
+    "learning":   "Learning Engine",
+    "api":        "API Report",
+    "settings":   "Settings"
+  },
+  "signal": {
+    "sell":        "SELL",
+    "buy":         "BUY",
+    "neutral":     "NEUTRAL",
+    "noTrade":     "NO TRADE",
+    "direction":   "Direction",
+    "confidence":  "Confidence",
+    "entry":       "Entry Price",
+    "sl":          "Stop Loss",
+    "tp1":         "Take Profit 1",
+    "tp2":         "Take Profit 2",
+    "rr":          "Risk / Reward",
+    "pips":        "pips",
+    "generated":   "Signal Generated",
+    "strength": {
+      "STRONG_BUY":  "Strong Buy",
+      "BUY":         "Buy",
+      "WEAK_BUY":    "Weak Buy",
+      "NEUTRAL":     "Neutral",
+      "WEAK_SELL":   "Weak Sell",
+      "SELL":        "Sell",
+      "STRONG_SELL": "Strong Sell",
+      "NO_TRADE":    "No Trade"
+    }
+  },
+  "risk": {
+    "title":          "Risk Manager",
+    "balance":        "Account Balance",
+    "profile":        "Risk Profile",
+    "conservative":   "Conservative",
+    "standard":       "Standard",
+    "aggressive":     "Aggressive",
+    "lot":            "Position Size",
+    "lotUnit":        "lot",
+    "maxLoss":        "Max Loss",
+    "expectedProfit": "Expected Profit",
+    "rrRatio":        "R/R Ratio",
+    "effectiveRisk":  "Effective Risk",
+    "slPips":         "SL Distance",
+    "dailyUsed":      "Daily Risk Used",
+    "weeklyUsed":     "Weekly Risk Used",
+    "drawdown":       "Current Drawdown",
+    "consecLoss":     "Consecutive Losses",
+    "level": {
+      "LOW":      "LOW RISK · Proceed",
+      "STANDARD": "STANDARD RISK · Proceed",
+      "ELEVATED": "ELEVATED RISK · Caution",
+      "HIGH":     "HIGH RISK · Warning"
+    },
+    "halt":           "SYSTEM HALTED",
+    "haltReason":     "Drawdown limit reached. Trading suspended.",
+    "warning":        "Drawdown Warning",
+    "warningDetail":  "consecutive losses — position size reduced"
+  },
+  "agents": {
+    "title":       "AI Committee",
+    "verdict":     "Committee Verdict",
+    "votes":       "votes",
+    "agreeing":    "agents agreeing",
+    "technical": {
+      "name": "Technical Analyst",
+      "role": "MA · RSI · MACD · BB · ADX"
+    },
+    "macro": {
+      "name": "Macro Analyst",
+      "role": "FED · ECB · GDP · CPI · Rate Diff"
+    },
+    "positioning": {
+      "name": "Positioning Analyst",
+      "role": "COT · DXY · US10Y · Spread"
+    },
+    "news": {
+      "name": "News Analyst",
+      "role": "Reuters · Bloomberg · ForexFactory"
+    },
+    "risk": {
+      "name": "Risk Analyst",
+      "role": "ATR · Volatility · Events · VIX"
+    },
+    "score":      "Score",
+    "weight":     "Weight",
+    "confidence": "Confidence",
+    "reason":     "Reason"
+  },
+  "regime": {
+    "title":          "Market Regime",
+    "trending_bull":  "Trending Bull",
+    "trending_bear":  "Trending Bear",
+    "ranging":        "Ranging",
+    "volatile":       "Volatile",
+    "breakout_up":    "Breakout Up",
+    "breakout_down":  "Breakout Down",
+    "unknown":        "Unknown"
+  },
+  "decision": {
+    "title":        "Decision Engine",
+    "pipeline":     "Decision Pipeline",
+    "finalScore":   "Final Score",
+    "gateResults":  "Gate Results",
+    "passed":       "PASSED",
+    "failed":       "FAILED",
+    "gates": {
+      "mtf":             "MTF Alignment",
+      "confidence":      "Min Confidence",
+      "rr":              "Min R/R Ratio",
+      "agentAgreement":  "Agent Agreement",
+      "drawdown":        "Drawdown Check",
+      "regime":          "Regime Filter"
+    },
+    "explanation":  "Why This Signal",
+    "noTradeReason": "No Trade Reason"
+  },
+  "mtf": {
+    "title":               "Multi-Timeframe Alignment",
+    "score":               "MTF Score",
+    "bias1d":              "1D Bias",
+    "bias4h":              "4H Bias",
+    "bias1h":              "1H Bias",
+    "fully_aligned":       "3TF CONFIRMED",
+    "partially_aligned":   "2TF CONFIRMED",
+    "primary_only":        "COUNTER-TREND",
+    "not_aligned":         "NOT ALIGNED — Signal Suppressed",
+    "confAdj":             "Confidence Adj"
+  },
+  "paper": {
+    "title":          "Paper Trading",
+    "submit":         "Submit Trade",
+    "close":          "Close",
+    "closeAll":       "Close All",
+    "openTrades":     "Open Trades",
+    "tradeHistory":   "Trade History",
+    "stats":          "Performance Stats",
+    "winRate":        "Win Rate",
+    "profitFactor":   "Profit Factor",
+    "totalPnl":       "Total P&L",
+    "totalPnlR":      "Total P&L (R)",
+    "avgWin":         "Avg Win",
+    "avgLoss":        "Avg Loss",
+    "maxConsecLoss":  "Max Consec. Loss",
+    "validation":     "Validation Progress",
+    "phase":          "Phase",
+    "trades":         "trades",
+    "goLive":         "Go-Live Eligible",
+    "notEligible":    "Not Yet Eligible",
+    "outcome": {
+      "win":        "WIN",
+      "loss":       "LOSS",
+      "breakeven":  "BREAKEVEN",
+      "open":       "OPEN"
+    },
+    "exitReason": {
+      "tp1":     "TP1 Hit",
+      "tp2":     "TP2 Hit",
+      "sl":      "SL Hit",
+      "manual":  "Manual Close",
+      "timeout": "Timeout"
+    }
+  },
+  "settings": {
+    "title":         "Settings",
+    "apiKey":        "Twelve Data API Key",
+    "apiKeyHint":    "Get your free key at twelvedata.com",
+    "connect":       "Connect",
+    "disconnect":    "Disconnect",
+    "connected":     "Connected",
+    "notConnected":  "Not Connected",
+    "account":       "Account Settings",
+    "balance":       "Starting Balance (USD)",
+    "riskProfile":   "Risk Profile",
+    "maxDrawdown":   "Max Drawdown Limit",
+    "maxConsecLoss": "Max Consecutive Losses",
+    "minConf":       "Min Signal Confidence",
+    "minRR":         "Min R/R Ratio",
+    "language":      "Language",
+    "timezone":      "Timezone",
+    "decisionParams": "Decision Engine Parameters",
+    "save":          "Save Settings",
+    "saved":         "Saved",
+    "reset":         "Reset to Defaults"
+  },
+  "calendar": {
+    "title":     "Economic Calendar",
+    "upcoming":  "Upcoming Events",
+    "previous":  "Previous Value",
+    "forecast":  "Forecast",
+    "actual":    "Actual",
+    "impact": {
+      "high":   "HIGH",
+      "medium": "MEDIUM",
+      "low":    "LOW"
+    },
+    "surprise": {
+      "better": "Better",
+      "worse":  "Worse",
+      "inline": "In Line"
+    }
+  },
+  "news": {
+    "title":       "News Impact",
+    "sentiment":   "Sentiment",
+    "usdBullish":  "USD Bullish",
+    "eurBullish":  "EUR Bullish",
+    "neutral":     "Neutral",
+    "impact":      "Impact",
+    "window24h":   "24H",
+    "window7d":    "7D",
+    "window30d":   "30D",
+    "noData":      "No recent news data"
+  },
+  "errors": {
+    "noApiKey":        "Configure your API Key in Settings to get live data",
+    "apiFailed":       "API connection failed — using fallback data",
+    "apiDegraded":     "API degraded — some data may be stale",
+    "invalidSl":       "Invalid stop loss distance",
+    "drawdownHalt":    "System halted — drawdown limit reached",
+    "insufficientData":"Insufficient data for analysis",
+    "agentError":      "Agent error — neutral fallback applied",
+    "signalError":     "Signal generation failed",
+    "tradeNotFound":   "Trade not found",
+    "alreadyClosed":   "Trade already closed"
+  },
+  "common": {
+    "loading":    "Loading...",
+    "save":       "Save",
+    "cancel":     "Cancel",
+    "apply":      "Apply",
+    "approve":    "Approve",
+    "reject":     "Reject",
+    "refresh":    "Refresh",
+    "connect":    "Connect",
+    "disconnect": "Disconnect",
+    "live":       "LIVE",
+    "simulated":  "SIMULATED",
+    "cached":     "CACHED",
+    "stale":      "STALE DATA",
+    "yes":        "Yes",
+    "no":         "No",
+    "confirm":    "Confirm",
+    "close":      "Close",
+    "open":       "Open",
+    "details":    "Details",
+    "history":    "History",
+    "updated":    "Updated",
+    "source":     "Source",
+    "version":    "Version",
+    "phase":      "Phase"
+  }
+}

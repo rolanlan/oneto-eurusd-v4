@@ -332,3 +332,63 @@ Phase 2 files:
 - `src/core/RegimeEngine.js` (extract from SignalEngine stub)
 - All 5 agent files
 - `src/agents/CommitteeOrchestrator.js` (rename/refactor CommitteeEngine)
+
+---
+
+## ENTRY 007
+
+**Version:** v4.0 Phase 2 — Foundation Layer Complete  
+**Date:** 2026-06  
+**Author:** Claude / ONETO  
+**Status:** ✅ Complete  
+
+### Summary
+Phase 2 delivers all remaining foundation-layer files: i18n system (EN/ZH),
+utility functions (indicators, formatters, validators), SimDataService,
+and the two state modules (AccountState, AppState) that complete the
+dependency tree for SignalEngine and RiskManager.
+
+All Phase 1 known issues resolved:
+- P1-003: i18n files created — 120+ keys in EN + ZH
+- P1-004: AccountState + AppState created — SignalEngine can now use real profile
+
+### Created Files
+```
+src/i18n/en.json               (~130 lines)  All UI strings, English source of truth
+src/i18n/zh.json               (~130 lines)  Complete Chinese mirror of en.json
+src/i18n/i18n.js               (~110 lines)  t(), setLang(), getLang(), formatters
+src/utils/validators.js        (~115 lines)  Input + signal + candle + weight validation
+src/utils/indicators.js        (~175 lines)  MA/EMA/RSI/MACD/BB/ATR/ADX/Stochastic
+src/utils/formatters.js        (~100 lines)  Locale-aware display formatters
+src/services/SimDataService.js  (~70 lines)  Standalone random-walk candle generator
+src/state/AccountState.js      (~230 lines)  Account profile + drawdown tracking
+src/state/AppState.js          (~210 lines)  Runtime state + event bus + auto-refresh
+```
+
+### Modified Files
+```
+docs/DEVELOPMENT_LOG.md   (this entry appended)
+```
+
+### Compatibility Verified
+- AccountState.get() returns all fields expected by SignalEngine._defaultProfile()
+- AccountState.get() returns all fields read by RiskManager.checkSystemHalt()
+- AppState.refreshAll() calls DataProvider.getCandles() / DataProvider.getPrice()
+- AppState.subscribe() / AppState.setSignalResult() wire SignalEngine to UI
+- i18n t('signal.sell') → "SELL" (EN) / "做空" (ZH)
+
+### Phase 2 Completion Criteria
+- [x] t('signal.sell') returns "SELL" (EN) / "做空" (ZH)
+- [x] indicators.calcRSI(closes) returns 0-100
+- [x] indicators.calcMACD(closes) returns { macd, signal, hist }
+- [x] SimDataService.getCandles(80) returns 80 valid candles
+- [x] AccountState.getDefault() returns account_balance: 1000
+- [x] AppState.getCandles('4H') returns Candle array
+- [x] AppState.refreshAll() dispatches stateUpdated event
+- [x] setLang / getLang toggles language and fires languagechange event
+
+### Known Issues at Close
+None. All P1 + P2 known issues resolved.
+
+### Next Phase
+Phase 3: Standalone MTFEngine + RegimeEngine + 5 agent files + CommitteeOrchestrator
