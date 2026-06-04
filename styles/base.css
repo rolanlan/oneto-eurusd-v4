@@ -1,0 +1,168 @@
+/* ============================================================
+   ONETO EUR/USD AI Tool — Base Styles
+   CSS variables, reset, typography, color system
+   Architecture Freeze V4.0-R1 | Phase 4D
+   ============================================================ */
+
+/* ── CSS Custom Properties ──────────────────────────────── */
+:root {
+  /* Brand */
+  --brand:        #6366f1;
+  --brand-dim:    #4f46e5;
+  --brand-glow:   rgba(99,102,241,0.15);
+
+  /* Signal colors */
+  --green:        #4ade80;
+  --green-dim:    #16a34a;
+  --green-bg:     rgba(74,222,128,0.10);
+  --red:          #f87171;
+  --red-dim:      #dc2626;
+  --red-bg:       rgba(248,113,113,0.10);
+  --amber:        #fbbf24;
+  --amber-dim:    #d97706;
+  --amber-bg:     rgba(251,191,36,0.10);
+  --purple:       #a78bfa;
+  --purple-dim:   #7c3aed;
+  --blue:         #60a5fa;
+  --blue-dim:     #2563eb;
+
+  /* Surfaces */
+  --bg:           #0f1117;
+  --bg2:          #161b27;
+  --bg3:          #1e2538;
+  --bg4:          #252d42;
+  --surface:      #1a2035;
+  --surface2:     #202840;
+
+  /* Borders */
+  --border:       #1f2937;
+  --border2:      #2d3748;
+  --border3:      #374151;
+
+  /* Text */
+  --text1:        #f9fafb;
+  --text2:        #9ca3af;
+  --text3:        #6b7280;
+  --text4:        #4b5563;
+
+  /* Spacing */
+  --gap-xs:       4px;
+  --gap-sm:       8px;
+  --gap-md:       12px;
+  --gap-lg:       16px;
+  --gap-xl:       24px;
+  --gap-2xl:      32px;
+
+  /* Border-radius */
+  --radius-sm:    4px;
+  --radius-md:    8px;
+  --radius-lg:    12px;
+  --radius-xl:    16px;
+  --radius-full:  9999px;
+
+  /* Typography */
+  --font-sans:    'Noto Sans SC', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:    'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', monospace;
+  --font-num:     var(--font-mono);
+
+  /* Shadows */
+  --shadow-sm:    0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:    0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg:    0 8px 24px rgba(0,0,0,0.6);
+  --shadow-glow:  0 0 20px rgba(99,102,241,0.25);
+
+  /* Transitions */
+  --transition:   150ms ease;
+  --transition-md:250ms ease;
+}
+
+/* ── Reset ──────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin:     0;
+  padding:    0;
+}
+
+html {
+  font-size:   15px;
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family:      var(--font-sans);
+  font-size:        0.9rem;
+  line-height:      1.55;
+  color:            var(--text1);
+  background-color: var(--bg);
+  overflow-x:       hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color:           var(--brand);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+button {
+  font-family: var(--font-sans);
+  font-size:   0.85rem;
+  cursor:      pointer;
+  border:      none;
+  outline:     none;
+  background:  transparent;
+  color:       inherit;
+}
+
+input, select, textarea {
+  font-family: var(--font-sans);
+  font-size:   0.85rem;
+  color:       var(--text1);
+  background:  var(--bg3);
+  border:      1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  outline:     none;
+  transition:  border-color var(--transition), box-shadow var(--transition);
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--brand);
+  box-shadow:   0 0 0 2px var(--brand-glow);
+}
+
+h1, h2, h3, h4 {
+  font-weight:   600;
+  line-height:   1.25;
+  color:         var(--text1);
+  letter-spacing:-0.01em;
+}
+
+p { color: var(--text2); }
+
+/* ── Number class ───────────────────────────────────────── */
+.num, .price-value, .score-number, .conf-number,
+.rm-lot-number, .ring-value, .stat-value {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* ── Utility ────────────────────────────────────────────── */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); border: 0;
+}
+.text-muted    { color: var(--text3); }
+.text-xs       { font-size: 0.72rem; }
+.text-sm       { font-size: 0.8rem;  }
+.text-md       { font-size: 0.9rem;  }
+.text-lg       { font-size: 1.05rem; }
+.font-mono     { font-family: var(--font-mono); }
+.truncate      { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar               { width: 5px; height: 5px; }
+::-webkit-scrollbar-track         { background: var(--bg2); }
+::-webkit-scrollbar-thumb         { background: var(--border3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover   { background: var(--text4); }

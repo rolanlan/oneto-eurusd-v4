@@ -1,0 +1,233 @@
+/* ============================================================
+   ONETO EUR/USD AI Tool — Committee Panel Styles
+   Architecture Freeze V4.0-R1 | Phase 4D
+   ============================================================ */
+
+.committee-panel { }
+.committee-header {
+  display:         flex;
+  flex-direction:  column;
+  gap:             var(--gap-md);
+  margin-bottom:   var(--gap-xl);
+}
+
+/* ── Verdict bar ────────────────────────────────────────── */
+.verdict-bar {
+  background:    var(--bg2);
+  border:        1px solid var(--border2);
+  border-radius: var(--radius-md);
+  padding:       var(--gap-md);
+}
+.verdict-bar.verdict-sell { border-color: var(--red-dim);   }
+.verdict-bar.verdict-buy  { border-color: var(--green-dim); }
+.verdict-direction {
+  font-size:   1.1rem;
+  font-weight: 700;
+  color:       var(--text1);
+  margin-bottom: 3px;
+}
+.verdict-neutral .verdict-direction { color: var(--text3); }
+.verdict-sell    .verdict-direction { color: var(--red);   }
+.verdict-buy     .verdict-direction { color: var(--green); }
+.verdict-confidence {
+  font-size:   0.72rem;
+  color:       var(--text3);
+  margin-bottom: var(--gap-sm);
+}
+.verdict-weight-track {
+  height:      6px;
+  background:  var(--bg4);
+  border-radius: 3px;
+  display:     flex;
+  overflow:    hidden;
+  margin-bottom: 4px;
+}
+.verdict-weight-sell { background: var(--red);   transition: width 0.4s ease; }
+.verdict-weight-buy  { background: var(--green); transition: width 0.4s ease; }
+.verdict-weight-labels {
+  display:     flex;
+  justify-content: space-between;
+  font-size:   0.65rem;
+}
+.sell-label { color: var(--red);   }
+.buy-label  { color: var(--green); }
+
+/* ── Agents grid ────────────────────────────────────────── */
+.agents-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap:                   var(--gap-md);
+  margin-bottom:         var(--gap-lg);
+}
+
+.agent-card {
+  background:    var(--bg2);
+  border:        1px solid var(--border2);
+  border-left:   3px solid var(--border2);
+  border-radius: var(--radius-md);
+  padding:       var(--gap-md);
+  transition:    border-color var(--transition);
+}
+.agent-card-sell    { border-left-color: var(--red) !important;   }
+.agent-card-buy     { border-left-color: var(--green) !important; }
+.agent-card-neutral { border-left-color: var(--text4) !important; }
+
+.agent-header {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           var(--gap-sm);
+  margin-bottom: var(--gap-sm);
+}
+.agent-icon         { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+.agent-name-group   { flex: 1; min-width: 0; }
+.agent-name         { font-size: 0.8rem; font-weight: 600; color: var(--text1); display: block; }
+.agent-role         { font-size: 0.65rem; color: var(--text4); display: block; }
+.agent-vote-badge {
+  padding:       2px 6px;
+  border-radius: var(--radius-full);
+  font-size:     0.65rem;
+  font-weight:   700;
+  flex-shrink:   0;
+  margin-top:    2px;
+}
+.agent-vote-sell    { background: var(--red-bg);   color: var(--red);   }
+.agent-vote-buy     { background: var(--green-bg); color: var(--green); }
+.agent-vote-neutral { background: rgba(255,255,255,0.06); color: var(--text3); }
+.agent-no-data      { color: var(--text4); font-size: 0.8rem; }
+
+/* Score row */
+.agent-score-row {
+  display:       grid;
+  grid-template-columns: 36px 1fr 44px;
+  align-items:   center;
+  gap:           6px;
+  margin-bottom: var(--gap-sm);
+}
+.agent-score-display { text-align: center; }
+.score-number {
+  display:    block;
+  font-size:  1.1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.score-label    { font-size: 0.55rem; color: var(--text4); text-transform: uppercase; letter-spacing: 0.06em; }
+.score-bar-track {
+  height:        6px;
+  background:    var(--bg4);
+  border-radius: 3px;
+  position:      relative;
+  overflow:      hidden;
+}
+.score-bar-fill {
+  height:        100%;
+  border-radius: 3px;
+  transition:    width 0.4s ease;
+}
+.score-bar-midline {
+  position:  absolute;
+  left:      50%;
+  top:       0;
+  width:     1px;
+  height:    100%;
+  background: var(--border2);
+}
+.agent-conf-display { text-align: center; }
+.conf-number  { font-size: 0.85rem; font-family: var(--font-num); color: var(--text2); display: block; line-height: 1; }
+.conf-label   { font-size: 0.55rem; color: var(--text4); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Weight bar */
+.agent-weight-bar {
+  height:        3px;
+  background:    var(--bg4);
+  border-radius: 2px;
+  position:      relative;
+  margin-bottom: var(--gap-sm);
+  overflow:      visible;
+}
+.agent-weight-fill {
+  height:        3px;
+  border-radius: 2px;
+  transition:    width 0.4s ease;
+}
+.agent-weight-label {
+  position:   absolute;
+  right:      0;
+  top:        4px;
+  font-size:  0.6rem;
+  color:      var(--text4);
+  white-space: nowrap;
+}
+
+/* Reasons */
+.agent-reasons { margin-top: var(--gap-xs); }
+.agent-reason-1 {
+  font-size:   0.72rem;
+  color:       var(--text2);
+  line-height: 1.4;
+  margin-bottom: 2px;
+}
+.agent-reason-2 {
+  font-size:   0.68rem;
+  color:       var(--text3);
+  line-height: 1.4;
+}
+
+/* ── Weight summary table ───────────────────────────────── */
+.weight-summary {
+  background:    var(--bg2);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow:      hidden;
+  margin-bottom: var(--gap-lg);
+}
+.weight-summary-header,
+.weight-summary-row {
+  display:   grid;
+  grid-template-columns: 24px 1fr 40px 50px 60px;
+  gap:       var(--gap-sm);
+  padding:   6px var(--gap-md);
+  align-items: center;
+  font-size: 0.75rem;
+}
+.weight-summary-header {
+  background: var(--bg3);
+  color:      var(--text4);
+  font-size:  0.65rem;
+  font-weight:600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.weight-summary-row + .weight-summary-row { border-top: 1px solid var(--border); }
+.ws-icon    { font-size: 0.9rem; }
+.ws-name    { color: var(--text2); }
+.ws-weight  { font-family: var(--font-num); color: var(--text2); text-align: right; }
+.ws-contrib { font-family: var(--font-num); color: var(--text3); text-align: right; }
+.ws-vote    { text-align: right; font-weight: 600; font-size: 0.68rem; }
+.ws-vote-sell    { color: var(--red);   }
+.ws-vote-buy     { color: var(--green); }
+.ws-vote-neutral { color: var(--text4); }
+
+/* ── Breakdown grid ─────────────────────────────────────── */
+.breakdown-grid {
+  display:               grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap:                   var(--gap-sm);
+}
+.breakdown-cell {
+  background:    var(--bg3);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding:       var(--gap-sm);
+  text-align:    center;
+}
+.bc-value {
+  display:     block;
+  font-size:   1.1rem;
+  font-weight: 700;
+  font-family: var(--font-num);
+  line-height: 1;
+  margin-bottom: 3px;
+}
+.bc-sell  { color: var(--red);   }
+.bc-buy   { color: var(--green); }
+.bc-label { font-size: 0.62rem; color: var(--text4); text-transform: uppercase; letter-spacing: 0.06em; }

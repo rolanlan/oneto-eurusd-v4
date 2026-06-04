@@ -1,0 +1,266 @@
+/* ============================================================
+   ONETO EUR/USD AI Tool — Paper Trade Panel Styles
+   Architecture Freeze V4.0-R1 | Phase 4D
+   ============================================================ */
+
+.paper-panel { }
+.paper-header { margin-bottom: var(--gap-lg); }
+
+/* ── Validation progress ────────────────────────────────── */
+.paper-validation {
+  background:    var(--bg2);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding:       var(--gap-md);
+  margin-bottom: var(--gap-lg);
+}
+.validation-title {
+  font-size:     0.65rem;
+  font-weight:   700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color:         var(--text4);
+  margin-bottom: var(--gap-sm);
+}
+.validation-phases {
+  display:   grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:       var(--gap-sm);
+  margin-bottom: var(--gap-sm);
+}
+.phase-block {
+  display:     flex;
+  flex-direction: column;
+  gap:         3px;
+}
+.phase-label {
+  font-size:   0.65rem;
+  color:       var(--text3);
+  font-weight: 500;
+}
+.phase-progress-bar {
+  height:      5px;
+  background:  var(--bg4);
+  border-radius: 3px;
+  overflow:    hidden;
+}
+.phase-progress-fill {
+  height:    100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+.phase-done   .phase-progress-fill { background: var(--green); }
+.phase-active .phase-progress-fill { background: var(--brand); }
+.phase-pending .phase-progress-fill { background: var(--text4); }
+.phase-count   { font-size: 0.62rem; color: var(--text4); font-family: var(--font-num); }
+.phase-done    .phase-count { color: var(--green); }
+
+.go-live-badge {
+  display:      inline-block;
+  padding:      3px 10px;
+  background:   var(--green-bg);
+  color:        var(--green);
+  border:       1px solid var(--green-dim);
+  border-radius: var(--radius-full);
+  font-size:    0.68rem;
+  font-weight:  700;
+}
+.not-eligible-badge {
+  display:      inline-block;
+  padding:      3px 10px;
+  background:   rgba(255,255,255,0.04);
+  color:        var(--text4);
+  border:       1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size:    0.68rem;
+  font-weight:  500;
+}
+
+/* ── Stats grid ─────────────────────────────────────────── */
+.paper-stats-grid {
+  display:               grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:                   2px;
+  background:            var(--border);
+  border:                1px solid var(--border);
+  border-radius:         var(--radius-md);
+  overflow:              hidden;
+  margin-bottom:         var(--gap-lg);
+}
+.paper-stat-cell {
+  background:    var(--bg2);
+  padding:       var(--gap-sm) var(--gap-md);
+  display:       flex;
+  flex-direction: column;
+  gap:           2px;
+}
+.stat-label { font-size: 0.62rem; color: var(--text4); text-transform: uppercase; letter-spacing: 0.06em; }
+.stat-value { font-size: 0.9rem; font-weight: 700; font-family: var(--font-num); }
+.paper-stats-empty {
+  padding:   var(--gap-lg);
+  color:     var(--text4);
+  font-size: 0.8rem;
+  text-align: center;
+  margin-bottom: var(--gap-lg);
+}
+
+/* ── Submit form ────────────────────────────────────────── */
+.paper-submit-form {
+  background:    var(--bg2);
+  border:        1px solid var(--border2);
+  border-radius: var(--radius-md);
+  padding:       var(--gap-lg);
+  margin-bottom: var(--gap-lg);
+}
+.form-title {
+  font-size:     0.72rem;
+  font-weight:   700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color:         var(--text3);
+  margin-bottom: var(--gap-md);
+}
+.paper-dir-row  { display: flex; gap: var(--gap-sm); margin-bottom: var(--gap-md); }
+.paper-dir-btn {
+  flex:          1;
+  padding:       8px;
+  border-radius: var(--radius-sm);
+  font-size:     0.82rem;
+  font-weight:   700;
+  background:    var(--bg3);
+  border:        1px solid var(--border2);
+  color:         var(--text3);
+  transition:    background var(--transition), color var(--transition), border-color var(--transition);
+}
+.paper-dir-btn.active.buy-btn  { background: var(--green-bg);  color: var(--green); border-color: var(--green-dim); }
+.paper-dir-btn.active.sell-btn { background: var(--red-bg);    color: var(--red);   border-color: var(--red-dim);   }
+.paper-input-grid {
+  display:   grid;
+  grid-template-columns: 1fr 1fr;
+  gap:       var(--gap-sm) var(--gap-md);
+  margin-bottom: var(--gap-sm);
+}
+.paper-input-row { display: flex; flex-direction: column; gap: 3px; }
+.paper-input-label { font-size: 0.65rem; color: var(--text4); }
+.paper-input {
+  padding:       5px 8px;
+  background:    var(--bg3);
+  border:        1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  color:         var(--text1);
+  font-size:     0.82rem;
+  font-family:   var(--font-num);
+  width:         100%;
+}
+.paper-input:focus { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-glow); }
+.paper-fill-btn {
+  width:         100%;
+  padding:       5px;
+  background:    var(--brand-glow);
+  color:         var(--brand);
+  border:        1px solid var(--brand);
+  border-radius: var(--radius-sm);
+  font-size:     0.75rem;
+  font-weight:   500;
+  margin-bottom: var(--gap-sm);
+  transition:    background var(--transition);
+}
+.paper-fill-btn:hover { background: var(--brand); color: #fff; }
+.paper-submit-btn {
+  width:         100%;
+  padding:       8px;
+  background:    var(--brand);
+  color:         #fff;
+  border:        none;
+  border-radius: var(--radius-sm);
+  font-size:     0.85rem;
+  font-weight:   600;
+  transition:    background var(--transition), opacity var(--transition);
+}
+.paper-submit-btn:hover  { background: var(--brand-dim); }
+.paper-submit-feedback {
+  margin-top:  6px;
+  font-size:   0.72rem;
+  text-align:  center;
+  min-height:  16px;
+}
+.feedback-ok  { color: var(--green); }
+.feedback-err { color: var(--red);   }
+
+/* ── Open / history sections ────────────────────────────── */
+.paper-open-section,
+.paper-history-section {
+  margin-bottom: var(--gap-lg);
+}
+.paper-open-empty {
+  padding:    var(--gap-md);
+  color:      var(--text4);
+  font-size:  0.78rem;
+  text-align: center;
+  background: var(--bg2);
+  border:     1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--gap-lg);
+}
+.paper-trades-list { display: flex; flex-direction: column; gap: 2px; }
+.paper-trades-history { max-height: 340px; overflow-y: auto; }
+
+/* Trade row */
+.trade-row {
+  background:    var(--bg2);
+  border:        1px solid var(--border);
+  border-left:   3px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding:       var(--gap-sm) var(--gap-md);
+  display:       flex;
+  flex-direction: column;
+  gap:           3px;
+}
+.trade-row-trade-buy  { border-left-color: var(--green-dim); }
+.trade-row-trade-sell { border-left-color: var(--red-dim);   }
+.trade-main, .trade-meta {
+  display:     flex;
+  align-items: center;
+  gap:         var(--gap-sm);
+  flex-wrap:   wrap;
+  font-size:   0.75rem;
+}
+.trade-dir {
+  font-weight: 700;
+  font-size:   0.72rem;
+  padding:     1px 5px;
+  border-radius: var(--radius-full);
+}
+.trade-buy  { color: var(--green); background: var(--green-bg); }
+.trade-sell { color: var(--red);   background: var(--red-bg);   }
+.trade-entry { font-family: var(--font-num); color: var(--text1); }
+.trade-lot   { color: var(--text3); }
+.trade-outcome {
+  padding:   1px 5px;
+  border-radius: var(--radius-full);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+.trade-outcome-win       { background: var(--green-bg); color: var(--green); }
+.trade-outcome-loss      { background: var(--red-bg);   color: var(--red);   }
+.trade-outcome-open      { background: rgba(255,255,255,0.06); color: var(--text3); }
+.trade-outcome-breakeven { background: var(--amber-bg); color: var(--amber); }
+.trade-pnl   { font-family: var(--font-num); font-weight: 600; }
+.pnl-pos     { color: var(--green); }
+.pnl-neg     { color: var(--red);   }
+.trade-exit  { color: var(--text4); font-size: 0.65rem; }
+.trade-meta  { color: var(--text4); font-size: 0.68rem; }
+.trade-time  { color: var(--text4); }
+.trade-dur   { color: var(--text4); }
+.close-trade-btn {
+  margin-left:   auto;
+  padding:       2px 8px;
+  background:    var(--red-bg);
+  color:         var(--red);
+  border:        1px solid var(--red-dim);
+  border-radius: var(--radius-sm);
+  font-size:     0.68rem;
+  font-weight:   500;
+  transition:    background var(--transition);
+}
+.close-trade-btn:hover { background: var(--red); color: #fff; }

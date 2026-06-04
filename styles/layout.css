@@ -1,0 +1,206 @@
+/* ============================================================
+   ONETO EUR/USD AI Tool — Layout
+   Sidebar (220px fixed), topbar, content area, page routing
+   Architecture Freeze V4.0-R1 | Phase 4D
+   ============================================================ */
+
+/* ── App shell ──────────────────────────────────────────── */
+#app {
+  display:        grid;
+  grid-template:  "sidebar topbar"  48px
+                  "sidebar content" 1fr
+                  / 220px 1fr;
+  height:         100vh;
+  overflow:       hidden;
+}
+
+/* ── Sidebar ────────────────────────────────────────────── */
+#sidebar {
+  grid-area:       sidebar;
+  display:         flex;
+  flex-direction:  column;
+  background:      var(--bg2);
+  border-right:    1px solid var(--border);
+  overflow-y:      auto;
+  overflow-x:      hidden;
+}
+
+.sidebar-logo {
+  display:         flex;
+  align-items:     center;
+  gap:             var(--gap-sm);
+  padding:         var(--gap-md) var(--gap-lg);
+  border-bottom:   1px solid var(--border);
+  min-height:      48px;
+}
+.sidebar-logo-text {
+  font-weight:     700;
+  font-size:       0.9rem;
+  color:           var(--text1);
+  letter-spacing:  0.04em;
+}
+.sidebar-logo-badge {
+  font-size:       0.65rem;
+  color:           var(--brand);
+  background:      var(--brand-glow);
+  padding:         1px 5px;
+  border-radius:   var(--radius-full);
+  font-weight:     600;
+}
+
+.sidebar-nav {
+  display:        flex;
+  flex-direction: column;
+  padding:        var(--gap-sm) 0;
+  flex:           1;
+}
+
+.nav-group-label {
+  font-size:      0.65rem;
+  font-weight:    600;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color:          var(--text4);
+  padding:        var(--gap-md) var(--gap-lg) var(--gap-xs);
+  margin-top:     var(--gap-sm);
+}
+
+.nav-item {
+  display:        flex;
+  align-items:    center;
+  gap:            var(--gap-sm);
+  padding:        var(--gap-sm) var(--gap-lg);
+  color:          var(--text2);
+  font-size:      0.82rem;
+  border-left:    2px solid transparent;
+  transition:     color var(--transition), background var(--transition), border-color var(--transition);
+  cursor:         pointer;
+  text-decoration:none;
+  user-select:    none;
+}
+.nav-item:hover {
+  color:          var(--text1);
+  background:     rgba(255,255,255,0.04);
+}
+.nav-item.active {
+  color:          var(--text1);
+  background:     var(--brand-glow);
+  border-left-color: var(--brand);
+}
+.nav-item-icon {
+  font-size:      0.95rem;
+  width:          18px;
+  text-align:     center;
+  flex-shrink:    0;
+}
+.nav-item-label { flex: 1; }
+
+/* ── Topbar ─────────────────────────────────────────────── */
+#topbar {
+  grid-area:       topbar;
+  display:         flex;
+  align-items:     center;
+  justify-content: flex-end;
+  gap:             var(--gap-md);
+  padding:         0 var(--gap-xl);
+  background:      var(--bg2);
+  border-bottom:   1px solid var(--border);
+  font-size:       0.8rem;
+}
+
+.topbar-price {
+  font-family:  var(--font-num);
+  font-size:    0.92rem;
+  font-weight:  600;
+  color:        var(--text1);
+}
+.topbar-change {
+  font-family: var(--font-num);
+  font-size:   0.78rem;
+}
+.topbar-change.positive { color: var(--green); }
+.topbar-change.negative { color: var(--red);   }
+
+.topbar-source {
+  font-size:   0.68rem;
+  padding:     2px 6px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+}
+.topbar-source.live      { color: var(--green);  background: var(--green-bg); }
+.topbar-source.cached    { color: var(--amber);  background: var(--amber-bg); }
+.topbar-source.simulated { color: var(--text3);  background: rgba(255,255,255,0.05); }
+
+#lang-toggle {
+  display:     flex;
+  gap:         2px;
+  background:  var(--bg3);
+  border:      1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding:     2px;
+}
+.lang-toggle-btn {
+  padding:     3px 8px;
+  font-size:   0.72rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  color:       var(--text3);
+  transition:  color var(--transition), background var(--transition);
+}
+.lang-toggle-btn.active {
+  background: var(--brand);
+  color:      #fff;
+}
+
+/* ── Content area ───────────────────────────────────────── */
+#content {
+  grid-area:   content;
+  overflow-y:  auto;
+  overflow-x:  hidden;
+  background:  var(--bg);
+}
+
+/* Pages — all hidden by default, shown by JS */
+.page {
+  display:  none;
+  padding:  var(--gap-xl);
+  min-height: 100%;
+}
+.page.active { display: block; }
+
+/* Two-column dashboard grid */
+.dashboard-grid {
+  display:               grid;
+  grid-template-columns: 340px 1fr;
+  grid-template-rows:    auto auto;
+  gap:                   var(--gap-lg);
+  align-items:           start;
+}
+
+.dashboard-left  { grid-column: 1; }
+.dashboard-right { grid-column: 2; }
+.dashboard-full  { grid-column: 1 / -1; }
+
+/* Single-column full-width pages */
+.page-full  { max-width: 100%; }
+.page-2col  {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-lg);
+  align-items: start;
+}
+
+/* Panel card wrapper */
+.panel-card {
+  background:    var(--surface);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow:      hidden;
+}
+
+.panel-title {
+  font-size:    0.92rem;
+  font-weight:  600;
+  color:        var(--text1);
+  margin-bottom: 0;
+}

@@ -1,0 +1,125 @@
+/* ============================================================
+   ONETO EUR/USD AI Tool — K-Line Panel Styles
+   Architecture Freeze V4.0-R1 | Phase 4D
+   ============================================================ */
+
+.kline-panel {
+  display:        flex;
+  flex-direction: column;
+  height:         100%;
+  min-height:     640px;
+  padding:        var(--gap-lg);
+  gap:            var(--gap-sm);
+}
+
+/* ── Toolbar ────────────────────────────────────────────── */
+.kline-toolbar {
+  display:        flex;
+  align-items:    center;
+  gap:            var(--gap-md);
+  flex-wrap:      wrap;
+}
+.kline-tf-group { display: flex; gap: 2px; }
+.tf-btn {
+  padding:       4px 10px;
+  border-radius: var(--radius-sm);
+  font-size:     0.75rem;
+  font-weight:   600;
+  background:    var(--bg3);
+  border:        1px solid var(--border2);
+  color:         var(--text3);
+  transition:    background var(--transition), color var(--transition);
+}
+.tf-btn:hover  { background: var(--bg4); color: var(--text1); }
+.tf-btn.active { background: var(--brand-glow); color: var(--brand); border-color: var(--brand); }
+
+.indicator-toggles { display: flex; gap: 2px; margin-left: auto; }
+.ind-toggle {
+  padding:       3px 9px;
+  border-radius: var(--radius-sm);
+  font-size:     0.7rem;
+  font-weight:   500;
+  background:    var(--bg3);
+  border:        1px solid var(--border2);
+  color:         var(--text3);
+  transition:    background var(--transition), color var(--transition);
+}
+.ind-toggle:hover  { background: var(--bg4); color: var(--text1); }
+.ind-toggle.active { background: rgba(251,191,36,0.12); color: var(--amber); border-color: var(--amber-dim); }
+
+/* ── OHLC hover bar ─────────────────────────────────────── */
+.kline-ohlc-bar {
+  display:     flex;
+  gap:         var(--gap-md);
+  font-size:   0.72rem;
+  font-family: var(--font-num);
+  color:       var(--text3);
+  min-height:  18px;
+}
+.ohlc-o { color: var(--text3);  }
+.ohlc-h { color: var(--green);  }
+.ohlc-l { color: var(--red);    }
+.ohlc-c { color: var(--text1);  }
+
+/* ── Main chart ─────────────────────────────────────────── */
+.kline-main-wrap {
+  flex:          1;
+  min-height:    320px;
+  background:    var(--bg2);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow:      hidden;
+}
+#tvChart {
+  width:  100%;
+  height: 100%;
+}
+
+/* ── Sub-charts ─────────────────────────────────────────── */
+.kline-sub-wrap {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows:    16px 80px;
+  column-gap:            var(--gap-md);
+  row-gap:               2px;
+}
+.kline-sub-label {
+  font-size:    0.62rem;
+  font-weight:  700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color:        var(--text4);
+  padding-left: 4px;
+  align-self:   end;
+}
+.kline-macd-wrap,
+.kline-rsi-wrap {
+  background:    var(--bg2);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow:      hidden;
+  padding:       4px;
+}
+.kline-macd-wrap canvas,
+.kline-rsi-wrap  canvas {
+  width:  100% !important;
+  height: 100% !important;
+}
+
+/* ── Status bar ─────────────────────────────────────────── */
+.kline-status-bar {
+  display:     flex;
+  align-items: center;
+  gap:         var(--gap-sm);
+  min-height:  18px;
+}
+.kline-data-source {
+  font-size:   0.65rem;
+  font-weight: 600;
+  padding:     1px 6px;
+  border-radius: var(--radius-full);
+}
+.kline-src-live      { color: var(--green);  background: var(--green-bg);  }
+.kline-src-cached    { color: var(--amber);  background: var(--amber-bg);  }
+.kline-src-simulated { color: var(--text3);  background: rgba(255,255,255,0.05); }
+.kline-src-loading   { color: var(--brand);  background: var(--brand-glow); }
