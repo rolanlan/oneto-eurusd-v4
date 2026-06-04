@@ -1,49 +1,50 @@
 /* ============================================================
    ONETO EUR/USD AI Tool — Base Styles
-   CSS variables, reset, typography, color system
-   Architecture Freeze V4.0-R1 | Phase 4D
+   Light theme: TradingView · Stripe · Linear · Notion
+   V4.1 UI Refactor
    ============================================================ */
 
 /* ── CSS Custom Properties ──────────────────────────────── */
 :root {
   /* Brand */
-  --brand:        #6366f1;
-  --brand-dim:    #4f46e5;
-  --brand-glow:   rgba(99,102,241,0.15);
+  --brand:        #4f46e5;
+  --brand-dim:    #4338ca;
+  --brand-glow:   rgba(79,70,229,0.08);
+  --brand-light:  #eef2ff;
 
-  /* Signal colors */
-  --green:        #4ade80;
-  --green-dim:    #16a34a;
-  --green-bg:     rgba(74,222,128,0.10);
-  --red:          #f87171;
-  --red-dim:      #dc2626;
-  --red-bg:       rgba(248,113,113,0.10);
-  --amber:        #fbbf24;
+  /* Signal colors — light-readable */
+  --green:        #16a34a;
+  --green-dim:    #15803d;
+  --green-bg:     #f0fdf4;
+  --red:          #dc2626;
+  --red-dim:      #b91c1c;
+  --red-bg:       #fef2f2;
+  --amber:        #f59e0b;
   --amber-dim:    #d97706;
-  --amber-bg:     rgba(251,191,36,0.10);
-  --purple:       #a78bfa;
-  --purple-dim:   #7c3aed;
-  --blue:         #60a5fa;
-  --blue-dim:     #2563eb;
+  --amber-bg:     #fffbeb;
+  --purple:       #7c3aed;
+  --purple-dim:   #6d28d9;
+  --blue:         #2563eb;
+  --blue-dim:     #1d4ed8;
 
-  /* Surfaces */
-  --bg:           #0f1117;
-  --bg2:          #161b27;
-  --bg3:          #1e2538;
-  --bg4:          #252d42;
-  --surface:      #1a2035;
-  --surface2:     #202840;
+  /* Surfaces — light theme */
+  --bg:           #f7f8fa;
+  --bg2:          #ffffff;
+  --bg3:          #f3f4f6;
+  --bg4:          #e9ebee;
+  --surface:      #ffffff;
+  --surface2:     #f9fafb;
 
   /* Borders */
-  --border:       #1f2937;
-  --border2:      #2d3748;
-  --border3:      #374151;
+  --border:       #e5e7eb;
+  --border2:      #d1d5db;
+  --border3:      #9ca3af;
 
   /* Text */
-  --text1:        #f9fafb;
-  --text2:        #9ca3af;
+  --text1:        #111827;
+  --text2:        #374151;
   --text3:        #6b7280;
-  --text4:        #4b5563;
+  --text4:        #9ca3af;
 
   /* Spacing */
   --gap-xs:       4px;
@@ -65,11 +66,11 @@
   --font-mono:    'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', monospace;
   --font-num:     var(--font-mono);
 
-  /* Shadows */
-  --shadow-sm:    0 1px 3px rgba(0,0,0,0.4);
-  --shadow-md:    0 4px 12px rgba(0,0,0,0.5);
-  --shadow-lg:    0 8px 24px rgba(0,0,0,0.6);
-  --shadow-glow:  0 0 20px rgba(99,102,241,0.25);
+  /* Shadows — light theme */
+  --shadow-sm:    0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:    0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg:    0 8px 24px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04);
+  --shadow-glow:  0 0 0 3px rgba(79,70,229,0.12);
 
   /* Transitions */
   --transition:   150ms ease;
@@ -85,14 +86,14 @@
 
 html {
   font-size:   15px;
-  color-scheme: dark;
+  color-scheme: light;
   -webkit-text-size-adjust: 100%;
 }
 
 body {
   font-family:      var(--font-sans);
   font-size:        0.9rem;
-  line-height:      1.55;
+  line-height:      1.6;
   color:            var(--text1);
   background-color: var(--bg);
   overflow-x:       hidden;
@@ -103,11 +104,11 @@ a {
   color:           var(--brand);
   text-decoration: none;
 }
-a:hover { text-decoration: underline; }
+a:hover { text-decoration: underline; color: var(--brand-dim); }
 
 button {
   font-family: var(--font-sans);
-  font-size:   0.85rem;
+  font-size:   0.875rem;
   cursor:      pointer;
   border:      none;
   outline:     none;
@@ -116,18 +117,18 @@ button {
 }
 
 input, select, textarea {
-  font-family: var(--font-sans);
-  font-size:   0.85rem;
-  color:       var(--text1);
-  background:  var(--bg3);
-  border:      1px solid var(--border2);
+  font-family:   var(--font-sans);
+  font-size:     0.875rem;
+  color:         var(--text1);
+  background:    #ffffff;
+  border:        1px solid var(--border2);
   border-radius: var(--radius-sm);
-  outline:     none;
-  transition:  border-color var(--transition), box-shadow var(--transition);
+  outline:       none;
+  transition:    border-color var(--transition), box-shadow var(--transition);
 }
 input:focus, select:focus, textarea:focus {
   border-color: var(--brand);
-  box-shadow:   0 0 0 2px var(--brand-glow);
+  box-shadow:   var(--shadow-glow);
 }
 
 h1, h2, h3, h4 {
@@ -137,7 +138,7 @@ h1, h2, h3, h4 {
   letter-spacing:-0.01em;
 }
 
-p { color: var(--text2); }
+p { color: var(--text2); line-height: 1.6; }
 
 /* ── Number class ───────────────────────────────────────── */
 .num, .price-value, .score-number, .conf-number,
@@ -153,16 +154,16 @@ p { color: var(--text2); }
   padding: 0; margin: -1px; overflow: hidden;
   clip: rect(0,0,0,0); border: 0;
 }
-.text-muted    { color: var(--text3); }
-.text-xs       { font-size: 0.72rem; }
-.text-sm       { font-size: 0.8rem;  }
-.text-md       { font-size: 0.9rem;  }
-.text-lg       { font-size: 1.05rem; }
-.font-mono     { font-family: var(--font-mono); }
-.truncate      { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.text-muted { color: var(--text3); }
+.text-xs    { font-size: 0.75rem;  }
+.text-sm    { font-size: 0.8125rem;}
+.text-md    { font-size: 0.9375rem;}
+.text-lg    { font-size: 1.0625rem;}
+.font-mono  { font-family: var(--font-mono); }
+.truncate   { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── Scrollbar ──────────────────────────────────────────── */
 ::-webkit-scrollbar               { width: 5px; height: 5px; }
-::-webkit-scrollbar-track         { background: var(--bg2); }
-::-webkit-scrollbar-thumb         { background: var(--border3); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover   { background: var(--text4); }
+::-webkit-scrollbar-track         { background: var(--bg3); }
+::-webkit-scrollbar-thumb         { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover   { background: var(--border3); }

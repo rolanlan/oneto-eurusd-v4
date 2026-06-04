@@ -1,6 +1,9 @@
 /* ============================================================
-   ONETO EUR/USD AI Tool — K-Line Panel Styles
-   Architecture Freeze V4.0-R1 | Phase 4D
+   ONETO EUR/USD AI Tool — K-Line Panel
+   V4.1 UI Refactor — Light Theme
+   TradingView chart background: #ffffff
+   Grid: #e5e7eb  Up: #22c55e  Down: #ef4444
+   MA1: #f59e0b   MA2: #6366f1
    ============================================================ */
 
 .kline-panel {
@@ -14,40 +17,44 @@
 
 /* ── Toolbar ────────────────────────────────────────────── */
 .kline-toolbar {
-  display:        flex;
-  align-items:    center;
-  gap:            var(--gap-md);
-  flex-wrap:      wrap;
+  display:     flex;
+  align-items: center;
+  gap:         var(--gap-md);
+  flex-wrap:   wrap;
 }
 .kline-tf-group { display: flex; gap: 2px; }
 .tf-btn {
-  padding:       4px 10px;
+  padding:       5px 11px;
   border-radius: var(--radius-sm);
-  font-size:     0.75rem;
+  font-size:     0.76rem;
   font-weight:   600;
-  background:    var(--bg3);
+  background:    #ffffff;
   border:        1px solid var(--border2);
   color:         var(--text3);
-  transition:    background var(--transition), color var(--transition);
+  transition:    background var(--transition), color var(--transition), border-color var(--transition);
 }
-.tf-btn:hover  { background: var(--bg4); color: var(--text1); }
-.tf-btn.active { background: var(--brand-glow); color: var(--brand); border-color: var(--brand); }
+.tf-btn:hover  { background: var(--bg3);     color: var(--text1); }
+.tf-btn.active { background: var(--brand-light); color: var(--brand); border-color: #c7d2fe; }
 
 .indicator-toggles { display: flex; gap: 2px; margin-left: auto; }
 .ind-toggle {
-  padding:       3px 9px;
+  padding:       3px 10px;
   border-radius: var(--radius-sm);
-  font-size:     0.7rem;
+  font-size:     0.72rem;
   font-weight:   500;
-  background:    var(--bg3);
+  background:    #ffffff;
   border:        1px solid var(--border2);
   color:         var(--text3);
   transition:    background var(--transition), color var(--transition);
 }
-.ind-toggle:hover  { background: var(--bg4); color: var(--text1); }
-.ind-toggle.active { background: rgba(251,191,36,0.12); color: var(--amber); border-color: var(--amber-dim); }
+.ind-toggle:hover  { background: var(--bg3); color: var(--text1); }
+.ind-toggle.active {
+  background:   #fffbeb;
+  color:        var(--amber-dim);
+  border-color: #fde68a;
+}
 
-/* ── OHLC hover bar ─────────────────────────────────────── */
+/* ── OHLCV hover bar ────────────────────────────────────── */
 .kline-ohlc-bar {
   display:     flex;
   gap:         var(--gap-md);
@@ -55,20 +62,22 @@
   font-family: var(--font-num);
   color:       var(--text3);
   min-height:  18px;
+  font-weight: 500;
 }
 .ohlc-o { color: var(--text3);  }
 .ohlc-h { color: var(--green);  }
 .ohlc-l { color: var(--red);    }
-.ohlc-c { color: var(--text1);  }
+.ohlc-c { color: var(--text1);  font-weight: 600; }
 
 /* ── Main chart ─────────────────────────────────────────── */
 .kline-main-wrap {
   flex:          1;
   min-height:    320px;
-  background:    var(--bg2);
+  background:    #ffffff;
   border:        1px solid var(--border);
   border-radius: var(--radius-md);
   overflow:      hidden;
+  box-shadow:    var(--shadow-sm);
 }
 #tvChart {
   width:  100%;
@@ -79,26 +88,27 @@
 .kline-sub-wrap {
   display:               grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows:    16px 80px;
+  grid-template-rows:    18px 84px;
   column-gap:            var(--gap-md);
   row-gap:               2px;
 }
 .kline-sub-label {
-  font-size:    0.62rem;
-  font-weight:  700;
+  font-size:      0.63rem;
+  font-weight:    700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color:        var(--text4);
-  padding-left: 4px;
-  align-self:   end;
+  color:          var(--text4);
+  padding-left:   4px;
+  align-self:     end;
 }
 .kline-macd-wrap,
 .kline-rsi-wrap {
-  background:    var(--bg2);
+  background:    #ffffff;
   border:        1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow:      hidden;
   padding:       4px;
+  box-shadow:    var(--shadow-sm);
 }
 .kline-macd-wrap canvas,
 .kline-rsi-wrap  canvas {
@@ -114,12 +124,13 @@
   min-height:  18px;
 }
 .kline-data-source {
-  font-size:   0.65rem;
-  font-weight: 600;
-  padding:     1px 6px;
+  font-size:     0.65rem;
+  font-weight:   600;
+  padding:       2px 7px;
   border-radius: var(--radius-full);
+  border:        1px solid;
 }
-.kline-src-live      { color: var(--green);  background: var(--green-bg);  }
-.kline-src-cached    { color: var(--amber);  background: var(--amber-bg);  }
-.kline-src-simulated { color: var(--text3);  background: rgba(255,255,255,0.05); }
-.kline-src-loading   { color: var(--brand);  background: var(--brand-glow); }
+.kline-src-live      { color: var(--green);     background: var(--green-bg);  border-color: #bbf7d0; }
+.kline-src-cached    { color: var(--amber-dim);  background: var(--amber-bg);  border-color: #fde68a; }
+.kline-src-simulated { color: var(--text3);      background: var(--bg3);       border-color: var(--border); }
+.kline-src-loading   { color: var(--brand);      background: var(--brand-light); border-color: #c7d2fe; }
