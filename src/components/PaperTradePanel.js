@@ -32,21 +32,36 @@
  *   .paper-stats-grid, .paper-trades-list, .trade-row,
  *   .trade-outcome.win / .loss / .open, .close-trade-btn
  *
- * Architecture Freeze V4.0-R1 | Phase 4C
+ * BUG-05 fix: Removed local `function formatLot` (line 431 in prior version)
+ * which shadowed the imported `formatLot` from i18n.js, causing
+ * "Identifier 'formatLot' has already been declared" SyntaxError in strict mode.
+ * The imported version from i18n.js is behaviourally identical and is used directly.
+ *
+ * Architecture Freeze V4.0-R1 | Phase 5B-Hotfix
  */
 
 'use strict';
 
-import * as AppState      from '../state/AppState.js';
+import * as AppState       from '../state/AppState.js';
 import * as PaperExecution from '../core/PaperExecution.js';
-import { t, getLang, formatPrice, formatPips, formatPct, formatLot, formatUSD, formatDate, formatDuration } from '../i18n/i18n.js';
+import {
+  t,
+  getLang,
+  formatPrice,
+  formatPips,
+  formatPct,
+  formatLot,
+  formatUSD,
+  formatDate,
+  formatDuration,
+} from '../i18n/i18n.js';
 import { isActionable, SIGNAL_DIRECTION } from '../types/Signal.js';
 
 // ─────────────────────────────────────────────
 // FORM STATE (survives re-renders)
 // ─────────────────────────────────────────────
 
-let _container  = null;
+let _container = null;
 let _form = {
   direction:   'BUY',
   entry_price: 0,
@@ -92,8 +107,8 @@ export function render() {
 // ─────────────────────────────────────────────
 
 function _buildHTML() {
-  const stats  = PaperExecution.getStats();
-  const lang   = getLang();
+  const stats = PaperExecution.getStats();
+  const lang  = getLang();
 
   return `
     <div class="paper-panel">
@@ -116,13 +131,13 @@ function _buildValidationProgress(stats, lang) {
   const closed = stats.closed;
 
   const bars = gates.map((gate, idx) => {
-    const prev  = gates[idx - 1] ?? 0;
-    const done  = closed >= gate;
-    const curr  = !done && closed >= prev;
-    const pct   = curr
+    const prev = gates[idx - 1] ?? 0;
+    const done = closed >= gate;
+    const curr = !done && closed >= prev;
+    const pct  = curr
       ? Math.round(((closed - prev) / (gate - prev)) * 100)
       : done ? 100 : 0;
-    const cls   = done ? 'phase-done' : curr ? 'phase-active' : 'phase-pending';
+    const cls  = done ? 'phase-done' : curr ? 'phase-active' : 'phase-pending';
 
     return `
       <div class="phase-block ${cls}">
@@ -161,14 +176,17 @@ function _buildStats(stats, lang) {
     : stats.profit_factor >= 1.0 ? 'var(--amber,#fbbf24)' : 'var(--red,#f87171)';
 
   const cells = [
-    [t('paper.winRate'),      `${(stats.win_rate * 100).toFixed(1)}%`, winRateColor],
-    [t('paper.profitFactor'), stats.profit_factor.toFixed(2),          pfColor],
-    [t('paper.totalPnlR'),    `${stats.total_pnl_r > 0 ? '+' : ''}${stats.total_pnl_r.toFixed(2)}R`, stats.total_pnl_r >= 0 ? 'var(--green,#4ade80)' : 'var(--red,#f87171)'],
-    [t('paper.totalPnl'),     formatUSD(stats.total_pnl_usd), stats.total_pnl_usd >= 0 ? 'var(--green,#4ade80)' : 'var(--red,#f87171)'],
-    [t('paper.avgWin'),       `+${stats.avg_win_r.toFixed(2)}R`, 'var(--green,#4ade80)'],
-    [t('paper.avgLoss'),      `${stats.avg_loss_r.toFixed(2)}R`, 'var(--red,#f87171)'],
-    [t('paper.maxConsecLoss'),stats.max_consec_loss.toString(), stats.max_consec_loss >= 4 ? 'var(--red,#f87171)' : 'var(--text1,#f9fafb)'],
-    [lang === 'zh' ? '总交易' : 'Total', `${stats.closed}/${stats.total}`, 'var(--text2,#9ca3af)'],
+    [t('paper.winRate'),      `${(stats.win_rate * 100).toFixed(1)}%`,                 winRateColor],
+    [t('paper.profitFactor'), stats.profit_factor.toFixed(2),                          pfColor],
+    [t('paper.totalPnlR'),    `${stats.total_pnl_r > 0 ? '+' : ''}${stats.total_pnl_r.toFixed(2)}R`,
+      stats.total_pnl_r >= 0 ? 'var(--green,#4ade80)' : 'var(--red,#f87171)'],
+    [t('paper.totalPnl'),     formatUSD(stats.total_pnl_usd),
+      stats.total_pnl_usd >= 0 ? 'var(--green,#4ade80)' : 'var(--red,#f87171)'],
+    [t('paper.avgWin'),       `+${stats.avg_win_r.toFixed(2)}R`,                       'var(--green,#4ade80)'],
+    [t('paper.avgLoss'),      `${stats.avg_loss_r.toFixed(2)}R`,                       'var(--red,#f87171)'],
+    [t('paper.maxConsecLoss'),stats.max_consec_loss.toString(),
+      stats.max_consec_loss >= 4 ? 'var(--red,#f87171)' : 'var(--text1,#f9fafb)'],
+    [lang === 'zh' ? '总交易' : 'Total', `${stats.closed}/${stats.total}`,             'var(--text2,#9ca3af)'],
   ].map(([label, value, color]) => `
     <div class="paper-stat-cell">
       <span class="stat-label">${label}</span>
@@ -182,8 +200,8 @@ function _buildStats(stats, lang) {
 // ── Submit form ──────────────────────────────
 
 function _buildSubmitForm(lang) {
-  const isBuy  = _form.direction === 'BUY';
-  const signal = AppState.getLastSignal();
+  const isBuy     = _form.direction === 'BUY';
+  const signal    = AppState.getLastSignal();
   const hasSignal = signal && isActionable(signal);
 
   return `
@@ -200,11 +218,11 @@ function _buildSubmitForm(lang) {
       </div>
 
       <div class="paper-input-grid">
-        ${_formInput('pt-entry',  t('signal.entry'),   _form.entry_price, 0.00001)}
-        ${_formInput('pt-sl',     t('signal.sl'),      _form.stop_loss,   0.00001)}
-        ${_formInput('pt-tp1',    t('signal.tp1'),     _form.tp1,         0.00001)}
-        ${_formInput('pt-tp2',    t('signal.tp2'),     _form.tp2,         0.00001)}
-        ${_formInput('pt-lot',    t('risk.lot'),       _form.lot_size,    0.01, 'lot')}
+        ${_formInput('pt-entry', t('signal.entry'), _form.entry_price, 0.00001)}
+        ${_formInput('pt-sl',    t('signal.sl'),    _form.stop_loss,   0.00001)}
+        ${_formInput('pt-tp1',   t('signal.tp1'),   _form.tp1,         0.00001)}
+        ${_formInput('pt-tp2',   t('signal.tp2'),   _form.tp2,         0.00001)}
+        ${_formInput('pt-lot',   t('risk.lot'),     _form.lot_size,    0.01, 'lot')}
       </div>
 
       ${hasSignal ? `
@@ -245,11 +263,11 @@ function _buildOpenTrades(lang) {
     </div>`;
   }
 
-  const rows = open.map(t => _buildTradeRow(t, lang, true)).join('');
+  const rows = open.map(trade => _buildTradeRow(trade, lang, true)).join('');
 
   return `
     <div class="paper-open-section">
-      <div class="section-title">${t_('paper.openTrades')} (${open.length})</div>
+      <div class="section-title">${t('paper.openTrades')} (${open.length})</div>
       <div class="paper-trades-list">${rows}</div>
     </div>
   `;
@@ -261,21 +279,21 @@ function _buildTradeHistory(lang) {
   const closed = PaperExecution.getClosed().slice(0, 30);
   if (!closed.length) return '';
 
-  const rows = closed.map(t => _buildTradeRow(t, lang, false)).join('');
+  const rows = closed.map(trade => _buildTradeRow(trade, lang, false)).join('');
 
   return `
     <div class="paper-history-section">
-      <div class="section-title">${t_('paper.tradeHistory')}</div>
+      <div class="section-title">${t('paper.tradeHistory')}</div>
       <div class="paper-trades-list paper-trades-history">${rows}</div>
     </div>
   `;
 }
 
 function _buildTradeRow(trade, lang, showClose) {
-  const isBuy     = trade.direction === 'BUY';
-  const dirCls    = isBuy ? 'trade-buy' : 'trade-sell';
-  const dirLabel  = isBuy ? t('signal.buy') : t('signal.sell');
-  const isOpen    = trade.status === 'open';
+  const isBuy    = trade.direction === 'BUY';
+  const dirCls   = isBuy ? 'trade-buy' : 'trade-sell';
+  const dirLabel = isBuy ? t('signal.buy') : t('signal.sell');
+  const isOpen   = trade.status === 'open';
 
   const outcomeCls = isOpen ? 'open'
     : trade.outcome === 'win' ? 'win' : 'loss';
@@ -290,8 +308,8 @@ function _buildTradeRow(trade, lang, showClose) {
 
   const pnl = isOpen
     ? ''
-    : `<span class="trade-pnl ${trade.pnl_r >= 0 ? 'pnl-pos' : 'pnl-neg'}">
-        ${trade.pnl_r >= 0 ? '+' : ''}${trade.pnl_r?.toFixed(2)}R
+    : `<span class="trade-pnl ${(trade.pnl_r ?? 0) >= 0 ? 'pnl-pos' : 'pnl-neg'}">
+        ${(trade.pnl_r ?? 0) >= 0 ? '+' : ''}${(trade.pnl_r ?? 0).toFixed(2)}R
         (${formatUSD(trade.pnl_usd)})
        </span>`;
 
@@ -377,17 +395,16 @@ function _attachEvents() {
 }
 
 function _handleSubmit() {
-  const feedback = _container.querySelector('#pt-feedback');
   const result = PaperExecution.submitTrade({
-    direction:   _form.direction,
-    entry_price: _form.entry_price || AppState.getCurrentPrice(),
-    stop_loss:   _form.stop_loss,
+    direction:     _form.direction,
+    entry_price:   _form.entry_price || AppState.getCurrentPrice(),
+    stop_loss:     _form.stop_loss,
     take_profit_1: _form.tp1,
     take_profit_2: _form.tp2,
-    lot_size:    _form.lot_size || 0.01,
+    lot_size:      _form.lot_size || 0.01,
     account_balance: 1000,
-    risk_pct:    0.02,
-    signal_id:   AppState.getLastSignal()?.id ?? null,
+    risk_pct:      0.02,
+    signal_id:     AppState.getLastSignal()?.id ?? null,
   });
 
   if (result?.error) {
@@ -401,8 +418,8 @@ function _handleSubmit() {
 function _showFeedback(msg, success) {
   const el = _container?.querySelector('#pt-feedback');
   if (!el) return;
-  el.textContent  = msg;
-  el.className    = `paper-submit-feedback ${success ? 'feedback-ok' : 'feedback-err'}`;
+  el.textContent = msg;
+  el.className   = `paper-submit-feedback ${success ? 'feedback-ok' : 'feedback-err'}`;
   setTimeout(() => { if (el) el.textContent = ''; }, 3000);
 }
 
@@ -414,22 +431,9 @@ function _syncFromSignal() {
   const signal = AppState.getLastSignal();
   if (!signal || !isActionable(signal)) return;
   _form.direction   = signal.direction === SIGNAL_DIRECTION.SELL ? 'SELL' : 'BUY';
-  _form.entry_price = signal.entry_price ?? 0;
-  _form.stop_loss   = signal.stop_loss   ?? 0;
-  _form.tp1         = signal.take_profit_1 ?? 0;
-  _form.tp2         = signal.take_profit_2 ?? 0;
-  _form.lot_size    = signal.lot_size    ?? 0.01;
-}
-
-// ─────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────
-
-// t_() avoids shadowing the imported t() in trade row templates
-function t_(key) { return t(key); }
-
-function formatLot(n) {
-  if (!n) return '—';
-  const unit = getLang() === 'zh' ? '手' : ' lot';
-  return `${parseFloat(n).toFixed(2)}${unit}`;
+  _form.entry_price = signal.entry_price    ?? 0;
+  _form.stop_loss   = signal.stop_loss      ?? 0;
+  _form.tp1         = signal.take_profit_1  ?? 0;
+  _form.tp2         = signal.take_profit_2  ?? 0;
+  _form.lot_size    = signal.lot_size       ?? 0.01;
 }
