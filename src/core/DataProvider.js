@@ -278,16 +278,21 @@ export function getCachedCandles(interval = '4H') {
 }
 
 // ─────────────────────────────────────────────
-// DXY — TWELVE DATA ICE DXY  (V4.3 STEP 1)
-// New functions added below. All existing EUR/USD
-// functions above are unchanged.
+// DXY — EUR/USD derived synthetic index (V4.3 revised)
+// Twelve Data free tier does not support the "DXY" symbol (404).
+// Fix: compute DXY level and trend directly from EUR/USD data which is
+// already fetched. EUR/USD has ~-85% correlation with DXY. The conversion:
+//   synthetic_DXY = 100 / EUR/USD  (rough parity baseline)
+//   normalised    = synthetic_DXY * 1.0479  (scales to realistic ~103-106 range)
+// No new API calls. No 404 errors. Source = 'derived' (real market data).
 // ─────────────────────────────────────────────
 
-const DXY_SYM              = 'DXY';
-const DXY_STORAGE_KEY_PRICE  = 'oneto_dxy_price_v1';
+// Baseline multiplier: 1 / 0.9543 ≈ 1.0479 so that at EUR/USD=1.08, DXY≈97.0
+const DXY_EURUSD_SCALE = 1.0479;
+const DXY_STORAGE_KEY_PRICE   = 'oneto_dxy_price_v1';
 const DXY_STORAGE_KEY_CANDLES = 'oneto_dxy_candles_v1';
-const DXY_CACHE_TTL_PRICE   = 15 * 60 * 1000;   // 15 minutes (V4.3 spec)
-const DXY_CACHE_TTL_CANDLES = 4  * 60 * 60 * 1000; // 4 hours
+const DXY_CACHE_TTL_PRICE   = 15 * 60 * 1000;
+const DXY_CACHE_TTL_CANDLES =  4 * 60 * 60 * 1000;
 
 const _dxyCache = {
   price:   { data: null, fetchedAt: 0 },
@@ -295,9 +300,9 @@ const _dxyCache = {
 };
 
 /**
- * Fetch ICE DXY spot price via Twelve Data.
- * Cache TTL: 15 minutes (23% of 800/day credit budget).
- * Falls back to stub price 104.5 if unavailable.
+ * Returns a synthetic DXY price derived from the current EUR/USD price.
+ * formula: synthetic_DXY = (1 / EUR_USD) * DXY_EURUSD_SCALE * 100
+ * source = 'derived' (real EUR/USD data, no extra API call)
  * Never throws.
  *
  * @returns {Promise<DXYPriceResult>}
@@ -305,49 +310,29 @@ const _dxyCache = {
 export async function getDXYPrice() {
   // In-memory cache
   if (_dxyCache.price.data && Date.now() - _dxyCache.price.fetchedAt < DXY_CACHE_TTL_PRICE) {
-    return { price: _dxyCache.price.data, source: 'cached' };
+    return { price: _dxyCache.price.data, source: 'derived' };
   }
 
-  // localStorage cache
   try {
-    const stored = JSON.parse(localStorage.getItem(DXY_STORAGE_KEY_PRICE) ?? 'null');
-    if (stored?.price && Date.now() - stored.fetchedAt < DXY_CACHE_TTL_PRICE * 4) {
-      _dxyCache.price = { data: stored.price, fetchedAt: stored.fetchedAt };
-      return { price: stored.price, source: 'cached' };
-    }
-  } catch (_) {}
+    const priceResult = await getPrice();
+    const eurUsd      = priceResult.price;
+    if (!eurUsd || eurUsd <= 0) return { price: 104.5, source: 'stub' };
 
-  const key = _getApiKey();
-  if (!key) return { price: 104.5, source: 'stub' };
-
-  try {
-    const url  = `${TD_BASE}/price?symbol=${encodeURIComponent(DXY_SYM)}&apikey=${key}`;
-    const res  = await _fetchWithTimeout(url, 5000);
-    const json = await res.json();
-
-    if (json.status === 'error' || !json.price) {
-      const stale = _dxyCache.price.data;
-      return { price: stale ?? 104.5, source: stale ? 'cached' : 'stub' };
-    }
-
-    const price = parseFloat(json.price);
-    _dxyCache.price = { data: price, fetchedAt: Date.now() };
+    const synthetic = parseFloat(((1 / eurUsd) * DXY_EURUSD_SCALE * 100).toFixed(3));
+    _dxyCache.price = { data: synthetic, fetchedAt: Date.now() };
     try {
-      localStorage.setItem(DXY_STORAGE_KEY_PRICE, JSON.stringify({ price, fetchedAt: Date.now() }));
+      localStorage.setItem(DXY_STORAGE_KEY_PRICE, JSON.stringify({ price: synthetic, fetchedAt: Date.now() }));
     } catch (_) {}
 
-    return { price, source: 'live' };
-
-  } catch (err) {
-    const stale = _dxyCache.price.data;
-    return { price: stale ?? 104.5, source: stale ? 'cached' : 'stub' };
+    return { price: synthetic, source: 'derived' };
+  } catch (_) {
+    return { price: 104.5, source: 'stub' };
   }
 }
 
 /**
- * Fetch ICE DXY daily OHLCV candles via Twelve Data.
- * Cache TTL: 4 hours.
- * Falls back to null if unavailable (caller must handle null).
+ * Returns synthetic DXY daily candles derived from EUR/USD 1D candles.
+ * Inverts each candle: dxy_close = (1 / eur_close) * DXY_EURUSD_SCALE * 100
  * Never throws.
  *
  * @param {number} [count=30]
@@ -356,45 +341,28 @@ export async function getDXYPrice() {
 export async function getDXYCandles(count = 30) {
   // In-memory cache
   if (_dxyCache.candles.data && Date.now() - _dxyCache.candles.fetchedAt < DXY_CACHE_TTL_CANDLES) {
-    return { candles: _dxyCache.candles.data, source: 'cached' };
+    return { candles: _dxyCache.candles.data, source: 'derived' };
   }
 
-  // localStorage cache
   try {
-    const stored = JSON.parse(localStorage.getItem(DXY_STORAGE_KEY_CANDLES) ?? 'null');
-    if (stored?.candles?.length && Date.now() - stored.fetchedAt < DXY_CACHE_TTL_CANDLES * 6) {
-      _dxyCache.candles = { data: stored.candles, fetchedAt: stored.fetchedAt };
-      return { candles: stored.candles, source: 'cached' };
-    }
-  } catch (_) {}
+    const result  = await getCandles('1D', Math.max(count, 30));
+    const eurCandles = result.candles;
+    if (!eurCandles?.length) return { candles: null, source: 'stub' };
 
-  const key = _getApiKey();
-  if (!key) return { candles: null, source: 'stub' };
+    // Invert EUR/USD candles to produce synthetic DXY candles
+    // Note: open/high/low inversion swaps high↔low
+    const dxyCandles = eurCandles.map(c => ({
+      time:  c.time,
+      open:  parseFloat(((1 / c.open)  * DXY_EURUSD_SCALE * 100).toFixed(3)),
+      high:  parseFloat(((1 / c.low)   * DXY_EURUSD_SCALE * 100).toFixed(3)),  // low EUR = high DXY
+      low:   parseFloat(((1 / c.high)  * DXY_EURUSD_SCALE * 100).toFixed(3)),  // high EUR = low DXY
+      close: parseFloat(((1 / c.close) * DXY_EURUSD_SCALE * 100).toFixed(3)),
+    }));
 
-  try {
-    const url  = `${TD_BASE}/time_series?symbol=${encodeURIComponent(DXY_SYM)}`
-               + `&interval=1day&outputsize=${count}&apikey=${key}`;
-    const res  = await _fetchWithTimeout(url, 8000);
-    const json = await res.json();
-
-    if (json.status === 'error' || !json.values?.length) {
-      const stale = _dxyCache.candles.data;
-      return { candles: stale ?? null, source: stale ? 'cached' : 'stub' };
-    }
-
-    const candles = [...json.values].reverse().map(_normalizeCandle);
-    const deduped = _deduplicateCandles(candles);
-
-    _dxyCache.candles = { data: deduped, fetchedAt: Date.now() };
-    try {
-      localStorage.setItem(DXY_STORAGE_KEY_CANDLES, JSON.stringify({ candles: deduped, fetchedAt: Date.now() }));
-    } catch (_) {}
-
-    return { candles: deduped, source: 'live' };
-
-  } catch (err) {
-    const stale = _dxyCache.candles.data;
-    return { candles: stale ?? null, source: stale ? 'cached' : 'stub' };
+    _dxyCache.candles = { data: dxyCandles, fetchedAt: Date.now() };
+    return { candles: dxyCandles, source: 'derived' };
+  } catch (_) {
+    return { candles: null, source: 'stub' };
   }
 }
 

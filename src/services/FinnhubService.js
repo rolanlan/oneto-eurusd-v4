@@ -215,8 +215,16 @@ export function clearCache() {
 async function _fetchNews(key) {
   const url = `${FINNHUB_BASE}/news?category=forex&token=${key}`;
   const res  = await _fetchWithTimeout(url, 8000);
+
+  if (res.status === 401) {
+    throw new Error('Finnhub 401 Unauthorized — check your API key in Settings');
+  }
+  if (res.status === 429) {
+    throw new Error('Finnhub 429 Rate limited — free tier 60 req/min exceeded');
+  }
+
   const json = await res.json();
-  if (json.error) throw new Error(json.error);
+  if (json.error) throw new Error(`Finnhub error: ${json.error}`);
   if (!Array.isArray(json)) throw new Error('Non-array news response');
   return json;
 }

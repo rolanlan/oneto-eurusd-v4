@@ -149,11 +149,13 @@
 
   <!-- ── Bootstrap module ─────────────────────────────── -->
   <script type="module">
-    // ── Imports ──────────────────────────────────────────
-    import * as AppState     from './src/state/AppState.js';
-    import * as AccountState from './src/state/AccountState.js';
-    import * as SignalEngine from './src/core/SignalEngine.js';
-    import * as MemoryAggregator from './src/services/MemoryAggregator.js';
+   // ── Imports ──────────────────────────────────────────
+    import * as AppState         from './src/state/AppState.js';
+    import * as AccountState     from './src/state/AccountState.js';
+    import * as SignalEngine      from './src/core/SignalEngine.js';
+    import * as MemoryAggregator  from './src/services/MemoryAggregator.js';
+    import * as FREDService       from './src/services/FREDService.js';
+    import * as FinnhubService    from './src/services/FinnhubService.js';
     import { getLang, setLang, t } from './src/i18n/i18n.js';
 
     // Components
@@ -175,11 +177,14 @@
     PaperTradePanel.mount(document.getElementById('paper-mount'));
     SettingsPanel.mount(document.getElementById('settings-mount'));
 
-    // KLine full page — separate instance
     // ── Navigation ────────────────────────────────────────
-    // BUG-01 FIX: capture original parent ONCE before any navigation moves the node.
-    const pages          = document.querySelectorAll('.page');
-    const navItems       = document.querySelectorAll('.nav-item[data-page]');
+    // BUG-01 FIX: KLinePanel singleton — _mounted guard blocks second mount().
+    // Fix: capture original parent ONCE, then move the node between containers.
+
+    const pages    = document.querySelectorAll('.page');
+    const navItems = document.querySelectorAll('.nav-item[data-page]');
+
+    // Capture original parent ONCE — before any navigation moves the node.
     const _klineDashParent = document.getElementById('kline-dash-mount')?.parentElement;
 
     function showPage(pageId) {
@@ -191,8 +196,7 @@
       if (page) page.classList.add('active');
       if (nav)  nav.classList.add('active');
 
-      // Lazy-mount full-page K-Line on first visit
-      // BUG-01 FIX: move the already-mounted chart node between containers
+      // ── K-Line DOM move (BUG-01 fix) ────────────────────────
       const klineNode     = document.getElementById('kline-dash-mount');
       const klinePageSlot = document.getElementById('kline-full-mount');
 
@@ -206,7 +210,7 @@
         }
       }
 
-      // Resize + refresh when K-Line page becomes visible
+      // Resize + refresh chart when K-Line page becomes visible
       if (pageId === 'kline') {
         setTimeout(() => {
           KLinePanel.forceResize?.();
@@ -214,7 +218,6 @@
         }, 30);
       }
 
-      // Store last visited page
       try { localStorage.setItem('oneto_last_page', pageId); } catch(_) {}
     }
 
@@ -402,7 +405,23 @@
     // startAutoRefresh fires refreshAll() immediately, then every 4 minutes.
     // Each refreshAll() completion dispatches 'stateUpdated', which triggers
     // generateSignal() via the subscriber above.
-    AppState.startAutoRefresh(240_000);
+  AppState.startAutoRefresh(240_000);
+
+    // ── Debug namespace (BUG-03 fix) ──────────────────────
+    // ES modules are not on window by default.
+    // Test from browser console:
+    //   window.__oneto.FRED.getMacroBundle()
+    //   window.__oneto.Finnhub.getNewsBundle()
+    //   window.__oneto.Memory.getStatus()
+    //   window.__oneto.Memory.getMemoryLayer()
+    window.__oneto = {
+      FRED:     FREDService,
+      Finnhub:  FinnhubService,
+      Memory:   MemoryAggregator,
+      AppState: AppState,
+      generate: generateSignal,
+    };
+    console.info('[ONETO] Debug: window.__oneto ready');
 
   </script>
 </body>
