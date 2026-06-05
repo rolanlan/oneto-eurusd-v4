@@ -38,6 +38,7 @@ import * as AppState from '../state/AppState.js';
 import { t, getLang, formatPrice, formatPips, formatPct, formatLot, formatUSD } from '../i18n/i18n.js';
 import { SIGNAL_STRENGTH, SIGNAL_DIRECTION, getStrengthLabel, isActionable } from '../types/Signal.js';
 import { AGENT, AGENT_META } from '../types/Vote.js';
+import * as MemoryAggregator from '../services/MemoryAggregator.js';
 
 // ─────────────────────────────────────────────
 // CONSTANTS

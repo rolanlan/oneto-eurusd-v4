@@ -35,6 +35,7 @@ import * as AppState from '../state/AppState.js';
 import { t, getLang } from '../i18n/i18n.js';
 import { AGENT, AGENT_META } from '../types/Vote.js';
 import { SIGNAL_STRENGTH } from '../types/Signal.js';
+import * as MemoryAggregator from '../services/MemoryAggregator.js';
 
 // ─────────────────────────────────────────────
 // CONSTANTS

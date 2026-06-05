@@ -37,6 +37,7 @@ import * as AppState from '../state/AppState.js';
 import { t, getLang } from '../i18n/i18n.js';
 import { AGENT } from '../types/Vote.js';
 import { SIGNAL_STRENGTH, SIGNAL_DIRECTION } from '../types/Signal.js';
+import * as MemoryAggregator from '../services/MemoryAggregator.js';
 
 // ─────────────────────────────────────────────
 // CONSTANTS
