@@ -167,3 +167,46 @@ p { color: var(--text2); line-height: 1.6; }
 ::-webkit-scrollbar-track         { background: var(--bg3); }
 ::-webkit-scrollbar-thumb         { background: var(--border2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover   { background: var(--border3); }
+
+/* ── Signal meta bar (V4.3 Data Transparency Patch) ────── */
+.hero-meta-bar {
+  grid-column:    1 / -1;
+  background:     var(--bg3);
+  border:         1px solid var(--border);
+  border-radius:  var(--radius-sm);
+  padding:        var(--gap-xs) var(--gap-md);
+  margin-top:     var(--gap-xs);
+}
+.meta-row {
+  display:     flex;
+  align-items: center;
+  gap:         var(--gap-md);
+  flex-wrap:   wrap;
+  font-size:   0.70rem;
+}
+.meta-item {
+  display:     flex;
+  align-items: center;
+  gap:         4px;
+}
+.meta-label { color: var(--text4); flex-shrink: 0; }
+.meta-value {
+  font-family: var(--font-num);
+  color:       var(--text2);
+  font-weight: 500;
+}
+.meta-id {
+  font-size:      0.68rem;
+  letter-spacing: 0.04em;
+  cursor:         default;
+}
+.meta-badge {
+  font-size:     0.62rem;
+  font-weight:   700;
+  padding:       1px 6px;
+  border-radius: 999px;
+  border:        1px solid currentColor;
+}
+.meta-live  { color: var(--green);     background: var(--green-bg);  }
+.meta-cache { color: var(--amber-dim); background: var(--amber-bg);  }
+.meta-stub  { color: var(--text4);     background: var(--bg3);       }

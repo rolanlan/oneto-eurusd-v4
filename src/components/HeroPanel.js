@@ -126,6 +126,7 @@ function _buildHTML() {
       ${_buildMiniScores(votes, lang)}
       ${_buildTradePlan(signal, lang)}
       ${_buildBadges(signal, lang)}
+      ${_buildSignalMeta(signal, lang)}
     </div>
   `;
 }
@@ -336,4 +337,74 @@ function _dataSourceLabel(source, lang) {
 
 function _attachEvents() {
   // No internal DOM events needed on this panel — all updates come from AppState
+}
+
+// ── Signal meta bar (transparency) ──────────
+// Shows: Signal ID · Generated time · Data source · Last refresh
+// V4.3 Data Transparency Patch
+
+function _buildSignalMeta(signal, lang) {
+  const lastRefresh = AppState.getLastRefresh();
+  const dataSource  = AppState.getDataSource();
+  const memStatus   = MemoryAggregator.getStatus();
+
+  // Format data source badge
+  const srcBadge = dataSource === 'live'
+    ? `<span class="meta-badge meta-live">● ${lang === 'zh' ? '实时' : 'LIVE'}</span>`
+    : dataSource === 'cached'
+      ? `<span class="meta-badge meta-cache">○ ${lang === 'zh' ? '缓存' : 'CACHE'}</span>`
+      : `<span class="meta-badge meta-stub">◌ ${lang === 'zh' ? '模拟' : 'SIM'}</span>`;
+
+  // Format memory layer status (worst-case)
+  const memSrc = memStatus?.last_aggregated > 0
+    ? (memStatus.fred?.status === 'live' || memStatus.dxy?.status === 'live' ? 'live' : 'stub')
+    : 'stub';
+  const memBadge = memSrc === 'live'
+    ? `<span class="meta-badge meta-live">● ${lang === 'zh' ? '宏观实时' : 'MACRO LIVE'}</span>`
+    : `<span class="meta-badge meta-stub">◌ ${lang === 'zh' ? '宏观默认' : 'MACRO DEFAULT'}</span>`;
+
+  // Signal info
+  const signalId   = signal?.id    ?? null;
+  const signalTs   = signal?.timestamp ?? null;
+  const shortId    = signalId ? signalId.slice(-8).toUpperCase() : '—';
+  const genTime    = signalTs  ? _fmtTime(signalTs,  lang) : '—';
+  const refreshTime= lastRefresh ? _fmtTime(lastRefresh, lang) : '—';
+
+  const labels = lang === 'zh'
+    ? { id: '信号ID', gen: '生成时间', refresh: '数据刷新', src: '价格源', mem: '宏观源' }
+    : { id: 'Signal', gen: 'Generated', refresh: 'Data refresh', src: 'Price', mem: 'Macro' };
+
+  return `
+    <div class="hero-meta-bar">
+      <div class="meta-row">
+        <span class="meta-item">
+          <span class="meta-label">${labels.id}</span>
+          <span class="meta-value meta-id" title="${signalId ?? ''}">${shortId}</span>
+        </span>
+        <span class="meta-item">
+          <span class="meta-label">${labels.gen}</span>
+          <span class="meta-value">${genTime}</span>
+        </span>
+        <span class="meta-item">
+          <span class="meta-label">${labels.refresh}</span>
+          <span class="meta-value">${refreshTime}</span>
+        </span>
+        <span class="meta-item">${srcBadge}</span>
+        <span class="meta-item">${memBadge}</span>
+      </div>
+    </div>
+  `;
+}
+
+function _fmtTime(tsMs, lang) {
+  if (!tsMs) return '—';
+  const d    = new Date(tsMs);
+  const hhmm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+  const ageMs  = Date.now() - tsMs;
+  const ageSec = Math.floor(ageMs / 1000);
+  const ageMin = Math.floor(ageSec / 60);
+  if (ageSec < 10)  return lang === 'zh' ? `${hhmm} (刚刚)` : `${hhmm} (just now)`;
+  if (ageSec < 60)  return lang === 'zh' ? `${hhmm} (${ageSec}秒前)` : `${hhmm} (${ageSec}s ago)`;
+  if (ageMin < 60)  return lang === 'zh' ? `${hhmm} (${ageMin}分前)` : `${hhmm} (${ageMin}m ago)`;
+  return hhmm;
 }

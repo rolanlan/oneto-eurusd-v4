@@ -99,6 +99,7 @@ function _buildHTML() {
       </div>
       ${_buildWeightSummary(votes, lang)}
       ${_buildBreakdown(verdict, signal, lang)}
+      ${_buildCommitteeMeta(signal, lang)}
     </div>
   `;
 }
@@ -291,6 +292,104 @@ function _buildBreakdown(verdict, signal, lang) {
         <span class="bc-value">${agree}</span>
         <span class="bc-label">${t('agents.agreeing')}</span>
       </div>
+    </div>
+  `;
+}
+
+// ── Committee meta footer (transparency) ──────────────
+// Shows per-agent data source, signal timestamp, memory layer status.
+// V4.3 Data Transparency Patch
+
+function _buildCommitteeMeta(signal, lang) {
+  const memStatus  = MemoryAggregator.getStatus();
+  const signalTs   = signal?.timestamp ?? null;
+  const signalId   = signal?.id ?? null;
+  const regime     = signal?.market_regime ?? AppState.getLastRegime() ?? '—';
+
+  const _ts = (ms) => {
+    if (!ms) return '—';
+    const d = new Date(ms);
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+  };
+
+  const srcBadge = (src) => {
+    const label = src === 'live'   ? (lang === 'zh' ? '实时' : 'LIVE')
+                : src === 'cached' ? (lang === 'zh' ? '缓存' : 'CACHE')
+                : src === 'stale'  ? (lang === 'zh' ? '过期' : 'STALE')
+                : src === 'stub'   ? (lang === 'zh' ? '默认' : 'STUB')
+                :                    (lang === 'zh' ? '未知' : '—');
+    const color = src === 'live'   ? 'var(--green)'
+                : src === 'cached' ? 'var(--amber-dim)'
+                : src === 'stale'  ? '#f97316'
+                : 'var(--text4)';
+    const bg    = src === 'live'   ? 'var(--green-bg)'
+                : src === 'cached' ? 'var(--amber-bg)'
+                : 'var(--bg3)';
+    return `<span style="display:inline-block;font-size:0.62rem;font-weight:700;
+                         padding:1px 6px;border-radius:999px;
+                         background:${bg};color:${color};border:1px solid currentColor">
+              ${label}
+            </span>`;
+  };
+
+  const services = [
+    { label: lang === 'zh' ? '技术面（K线）' : 'Tech (candles)',
+      src: AppState.getDataSource() },
+    { label: lang === 'zh' ? '宏观 (FRED)'   : 'Macro (FRED)',
+      src: memStatus?.fred?.status     ?? 'stub' },
+    { label: lang === 'zh' ? 'DXY 指数'      : 'DXY (TD)',
+      src: memStatus?.dxy?.status      ?? 'stub',
+      detail: memStatus?.dxy?.price    ? memStatus.dxy.price.toFixed(3) + ' ' + (memStatus.dxy.trend ?? '') : null },
+    { label: lang === 'zh' ? '新闻情绪'      : 'News',
+      src: memStatus?.news?.status     ?? 'stub' },
+    { label: lang === 'zh' ? '经济日历'      : 'Calendar',
+      src: memStatus?.calendar?.status ?? 'stub' },
+    { label: 'COT',
+      src: memStatus?.cot?.status      ?? 'stub' },
+  ];
+
+  const serviceRows = services.map(s => `
+    <div style="display:flex;align-items:center;gap:var(--gap-sm);padding:3px 0;
+                border-bottom:1px solid var(--border);font-size:0.75rem">
+      <span style="min-width:110px;color:var(--text3)">${s.label}</span>
+      ${srcBadge(s.src)}
+      ${s.detail ? `<span style="font-family:var(--font-num);font-size:0.72rem;color:var(--text2)">${s.detail}</span>` : ''}
+    </div>`).join('');
+
+  const lastAgg = memStatus?.last_aggregated
+    ? _ts(memStatus.last_aggregated)
+    : '—';
+
+  const shortId = signalId ? signalId.slice(-8).toUpperCase() : '—';
+
+  const labels = lang === 'zh'
+    ? { title: '数据来源审计', id: '信号ID', gen: '生成', regime: '市场状态', mem: '宏观刷新' }
+    : { title: 'Data Source Audit', id: 'Signal', gen: 'Generated', regime: 'Regime', mem: 'Macro refresh' };
+
+  return `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-md);
+                padding:var(--gap-md);margin-top:var(--gap-lg)">
+      <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;
+                  color:var(--text4);margin-bottom:var(--gap-sm)">${labels.title}</div>
+      <div style="display:flex;gap:var(--gap-xl);margin-bottom:var(--gap-sm);flex-wrap:wrap">
+        <div style="font-size:0.75rem">
+          <span style="color:var(--text3)">${labels.id}: </span>
+          <span style="font-family:var(--font-num);color:var(--text2)" title="${signalId ?? ''}">${shortId}</span>
+        </div>
+        <div style="font-size:0.75rem">
+          <span style="color:var(--text3)">${labels.gen}: </span>
+          <span style="font-family:var(--font-num);color:var(--text2)">${_ts(signalTs)}</span>
+        </div>
+        <div style="font-size:0.75rem">
+          <span style="color:var(--text3)">${labels.regime}: </span>
+          <span style="font-family:var(--font-num);color:var(--text2)">${regime}</span>
+        </div>
+        <div style="font-size:0.75rem">
+          <span style="color:var(--text3)">${labels.mem}: </span>
+          <span style="font-family:var(--font-num);color:var(--text2)">${lastAgg}</span>
+        </div>
+      </div>
+      ${serviceRows}
     </div>
   `;
 }

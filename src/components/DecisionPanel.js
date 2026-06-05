@@ -105,6 +105,7 @@ function _buildHTML() {
       ${_buildGatesTable(signal, lang)}
       ${_buildScoreDisplay(signal, lang)}
       ${_buildExplanation(signal, lang)}
+      ${_buildSignalAudit(signal, lang)}
     </div>
   `;
 }
@@ -336,4 +337,158 @@ function _signalClass(strength) {
   if (s.includes('SELL')) return 'sell';
   if (s === 'NO_TRADE')   return 'notrade';
   return 'neutral';
+}
+
+// ── Signal audit panel (transparency) ──────────────────
+// Full signal provenance: ID, timestamp, data sources, memory layer.
+// V4.3 Data Transparency Patch
+
+function _buildSignalAudit(signal, lang) {
+  const memStatus  = MemoryAggregator.getStatus();
+  const lastRefresh = AppState.getLastRefresh();
+
+  if (!signal) {
+    return `<div style="margin-top:var(--gap-lg);padding:var(--gap-md);
+                        background:var(--bg2);border:1px solid var(--border);
+                        border-radius:var(--radius-md);font-size:0.8rem;color:var(--text4)">
+              ${lang === 'zh' ? '等待信号生成...' : 'Awaiting signal generation...'}
+            </div>`;
+  }
+
+  const _ts = (ms) => {
+    if (!ms) return '—';
+    const d = new Date(ms);
+    const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+    return `${date} ${time}`;
+  };
+
+  const _age = (ms) => {
+    if (!ms) return '';
+    const s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 60)  return lang === 'zh' ? `(${s}秒前)` : `(${s}s ago)`;
+    const m = Math.floor(s / 60);
+    if (m < 60)  return lang === 'zh' ? `(${m}分前)` : `(${m}m ago)`;
+    return lang === 'zh' ? `(${Math.floor(m/60)}小时前)` : `(${Math.floor(m/60)}h ago)`;
+  };
+
+  const srcBadge = (src, small = false) => {
+    const label = src === 'live'   ? 'LIVE'
+                : src === 'cached' ? 'CACHE'
+                : src === 'stale'  ? 'STALE'
+                : src === 'stub'   ? 'STUB' : '—';
+    const color = src === 'live'   ? 'var(--green)'
+                : src === 'cached' ? 'var(--amber-dim)'
+                : src === 'stale'  ? '#f97316'
+                : 'var(--text4)';
+    const bg    = src === 'live'   ? 'var(--green-bg)'
+                : src === 'cached' ? 'var(--amber-bg)'
+                : 'var(--bg3)';
+    const sz    = small ? '0.60rem' : '0.65rem';
+    return `<span style="font-size:${sz};font-weight:700;padding:1px 6px;border-radius:999px;
+                         background:${bg};color:${color};border:1px solid currentColor">${label}</span>`;
+  };
+
+  // Full signal ID and shorthand
+  const signalId  = signal.id ?? '—';
+  const shortId   = signalId !== '—' ? signalId.slice(-12).toUpperCase() : '—';
+  const signalTs  = signal.timestamp ?? null;
+  const dataSource = AppState.getDataSource();
+  const timeframe  = signal.timeframe ?? '4H';
+  const regime     = signal.market_regime ?? '—';
+  const mtfState   = signal.mtf_state ?? '—';
+  const memAgg     = memStatus?.last_aggregated ?? 0;
+
+  const infoRows = [
+    { k: lang === 'zh' ? '完整信号ID' : 'Full Signal ID',
+      v: `<span style="font-family:var(--font-mono);font-size:0.72rem;
+                       word-break:break-all;color:var(--text2)">${signalId}</span>` },
+    { k: lang === 'zh' ? '信号生成时间' : 'Signal generated',
+      v: `<span style="font-family:var(--font-num)">${_ts(signalTs)} ${_age(signalTs)}</span>` },
+    { k: lang === 'zh' ? '数据刷新时间' : 'Data refreshed',
+      v: `<span style="font-family:var(--font-num)">${_ts(lastRefresh)} ${_age(lastRefresh)}</span>` },
+    { k: lang === 'zh' ? '宏观层刷新' : 'Memory layer refresh',
+      v: `<span style="font-family:var(--font-num)">${memAgg ? _ts(memAgg) + ' ' + _age(memAgg) : '—'}</span>` },
+    { k: lang === 'zh' ? '价格数据源' : 'Price data source',
+      v: srcBadge(dataSource) },
+    { k: lang === 'zh' ? '分析时间框' : 'Analysis timeframe',
+      v: `<span style="font-family:var(--font-num)">${timeframe}</span>` },
+    { k: lang === 'zh' ? '市场状态' : 'Market regime',
+      v: `<span style="font-family:var(--font-num)">${regime}</span>` },
+    { k: lang === 'zh' ? 'MTF状态' : 'MTF state',
+      v: `<span style="font-family:var(--font-num)">${mtfState}</span>` },
+  ];
+
+  const serviceRows = [
+    { label: lang === 'zh' ? '技术面（K线）' : 'Technical (candles)',
+      src: dataSource },
+    { label: lang === 'zh' ? '宏观 (FRED)'   : 'Macro (FRED)',
+      src: memStatus?.fred?.status ?? 'stub',
+      detail: memStatus?.fred?.spread != null ? `Spread ${memStatus.fred.spread.toFixed(2)}%` : null },
+    { label: lang === 'zh' ? 'DXY 指数 (TD)' : 'DXY index (TD)',
+      src: memStatus?.dxy?.status ?? 'stub',
+      detail: memStatus?.dxy?.price ? `${memStatus.dxy.price.toFixed(3)} ${memStatus.dxy.trend ?? ''}` : null },
+    { label: lang === 'zh' ? '新闻情绪'      : 'News sentiment',
+      src: memStatus?.news?.status ?? 'stub',
+      detail: memStatus?.news?.score_24h != null ? `Net24h: ${memStatus.news.score_24h > 0 ? '+' : ''}${memStatus.news.score_24h}` : null },
+    { label: lang === 'zh' ? '经济日历'      : 'Economic calendar',
+      src: memStatus?.calendar?.status ?? 'stub',
+      detail: memStatus?.calendar?.event_risk ? (lang === 'zh' ? '⚠ 有高影响事件' : '⚠ High impact event') : null },
+    { label: 'COT positioning',
+      src: memStatus?.cot?.status ?? 'stub',
+      detail: memStatus?.cot?.z_score != null ? `z=${memStatus.cot.z_score.toFixed(2)} (${memStatus.cot.signal ?? '—'})` : null },
+  ].map(s => `
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:4px var(--gap-sm);font-size:0.75rem;color:var(--text3);
+                 white-space:nowrap">${s.label}</td>
+      <td style="padding:4px var(--gap-sm)">${srcBadge(s.src, true)}</td>
+      <td style="padding:4px var(--gap-sm);font-size:0.72rem;
+                 font-family:var(--font-num);color:var(--text2)">${s.detail ?? ''}</td>
+    </tr>`).join('');
+
+  const infoHtml = infoRows.map(r => `
+    <div style="display:flex;align-items:baseline;gap:var(--gap-md);
+                padding:4px 0;border-bottom:1px solid var(--border);font-size:0.78rem">
+      <span style="min-width:140px;color:var(--text3);flex-shrink:0">${r.k}</span>
+      <span style="color:var(--text1)">${r.v}</span>
+    </div>`).join('');
+
+  const title = lang === 'zh' ? '信号溯源 · 数据可审计性' : 'Signal Provenance · Data Auditability';
+
+  return `
+    <div style="margin-top:var(--gap-xl);background:var(--bg2);
+                border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--gap-lg)">
+
+      <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
+                  letter-spacing:0.10em;color:var(--text4);margin-bottom:var(--gap-md)">
+        ${title}
+      </div>
+
+      <!-- Signal metadata -->
+      <div style="margin-bottom:var(--gap-md)">${infoHtml}</div>
+
+      <!-- Per-service data sources -->
+      <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
+                  letter-spacing:0.08em;color:var(--text4);
+                  margin-bottom:var(--gap-xs);margin-top:var(--gap-md)">
+        ${lang === 'zh' ? '各模块数据来源' : 'Per-Module Data Sources'}
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border2)">
+            <th style="text-align:left;font-size:0.65rem;font-weight:600;color:var(--text4);
+                       padding:3px var(--gap-sm);text-transform:uppercase;
+                       letter-spacing:0.06em">${lang === 'zh' ? '模块' : 'Module'}</th>
+            <th style="text-align:left;font-size:0.65rem;font-weight:600;color:var(--text4);
+                       padding:3px var(--gap-sm);text-transform:uppercase;
+                       letter-spacing:0.06em">${lang === 'zh' ? '状态' : 'Status'}</th>
+            <th style="text-align:left;font-size:0.65rem;font-weight:600;color:var(--text4);
+                       padding:3px var(--gap-sm);text-transform:uppercase;
+                       letter-spacing:0.06em">${lang === 'zh' ? '数值' : 'Value'}</th>
+          </tr>
+        </thead>
+        <tbody>${serviceRows}</tbody>
+      </table>
+    </div>
+  `;
 }
