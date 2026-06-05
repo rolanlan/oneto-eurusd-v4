@@ -5,13 +5,20 @@
  * Records, tracks, and closes simulated trades.
  * Writes outcomes back to signal records for Learning Engine.
  *
+ * V5.2 (FREEZE-RULE-016): Trade records now include full signal context:
+ *   market_regime, signal_strength, final_score, final_confidence,
+ *   agents_agreeing, agent_votes, agent_scores, data_sources
+ *
+ * Migration: _loadTrades() applies _migrateTrade() to all existing records
+ * so old paper_trades_v4 data loads cleanly with default fallback values.
+ *
  * Validation gates: 100 → 300 → 500 → 1000 trades before live trading.
  *
  * Phase 1–4: Persisted to localStorage.
  * Phase 5+:  Written to paper_trades + signal_results Supabase tables.
  *
  * Interface Contract 6 compliant.
- * Architecture Freeze V4.0-R1 | Phase 1
+ * Architecture Freeze V4.0-R1 | Phase 1 | V5.2 context enrichment
  */
 
 'use strict';
@@ -121,19 +128,19 @@ export function getStats() {
   const avgWinR     = wins.length  ? wins.reduce((s, t) => s + (t.pnl_r ?? 0), 0)  / wins.length  : 0;
   const avgLossR    = losses.length ? losses.reduce((s, t) => s + (t.pnl_r ?? 0), 0) / losses.length : 0;
 
-  const grossProfit = wins.reduce((s, t) => s + (t.pnl_r ?? 0), 0);
-  const grossLoss   = Math.abs(losses.reduce((s, t) => s + (t.pnl_r ?? 0), 0));
+  const grossProfit  = wins.reduce((s, t) => s + (t.pnl_r ?? 0), 0);
+  const grossLoss    = Math.abs(losses.reduce((s, t) => s + (t.pnl_r ?? 0), 0));
   const profitFactor = grossLoss > 0 ? parseFloat((grossProfit / grossLoss).toFixed(2)) : 0;
 
   const winRate = closed.length > 0 ? parseFloat((wins.length / closed.length).toFixed(3)) : 0;
 
   // Validation phase
-  const totalClosed   = closed.length;
-  const currentGate   = VALIDATION_GATES.find(g => totalClosed < g) ?? VALIDATION_GATES[VALIDATION_GATES.length - 1];
-  const prevGate      = VALIDATION_GATES[VALIDATION_GATES.indexOf(currentGate) - 1] ?? 0;
+  const totalClosed  = closed.length;
+  const currentGate  = VALIDATION_GATES.find(g => totalClosed < g) ?? VALIDATION_GATES[VALIDATION_GATES.length - 1];
+  const prevGate     = VALIDATION_GATES[VALIDATION_GATES.indexOf(currentGate) - 1] ?? 0;
   const phaseProgress = totalClosed - prevGate;
-  const phaseTarget   = currentGate - prevGate;
-  const currentPhase  = VALIDATION_GATES.indexOf(currentGate) + 1;
+  const phaseTarget  = currentGate - prevGate;
+  const currentPhase = VALIDATION_GATES.indexOf(currentGate) + 1;
 
   // Max consecutive losses
   let maxConsec = 0, curConsec = 0;
@@ -201,6 +208,7 @@ export function clearAll() {
 
 function _submit(input) {
   const {
+    // ── Core trade fields (required / always-present) ──
     direction,
     entry_price,
     stop_loss,
@@ -210,9 +218,25 @@ function _submit(input) {
     account_balance = 1000,
     risk_pct        = 0.02,
     signal_id       = null,
+
+    // ── Signal context fields (V5.2 — FREEZE-RULE-016) ──
+    // Passed from PaperTradePanel._handleSubmit() via AppState.getLastSignal()
+    // and AppState.getLastVotes(). Default to safe fallbacks if not provided
+    // (e.g. manual trades without a signal context).
+    market_regime    = 'unknown',
+    signal_strength  = 'UNKNOWN',
+    final_score      = 50,
+    final_confidence = 0,
+    agents_agreeing  = 0,
+    // agent_votes: { agentName: { vote, score } } — compact per FREEZE-RULE-012
+    agent_votes      = {},
+    // agent_scores: { agentName: score } — convenience flat map
+    agent_scores     = {},
+    // data_sources: { fred, finnhub, dxy, cot } — LIVE/CACHE/STUB/DERIVED
+    data_sources     = {},
   } = input ?? {};
 
-  // Validation
+  // ── Validation ──────────────────────────────
   if (!['BUY', 'SELL'].includes(direction)) {
     return { error: 'validation_failed', message: 'direction must be BUY or SELL' };
   }
@@ -225,7 +249,12 @@ function _submit(input) {
   const tp2_pips = Math.round(Math.abs(entry_price - (take_profit_2 ?? entry_price)) / 0.0001);
 
   const trade = Object.freeze({
+    // ── Identity ──
     id:               _generateId(),
+    opened_at:        new Date().toISOString(),
+    validation_phase: _currentPhase(),
+
+    // ── Trade specification ──
     direction,
     entry_price:      _r5(entry_price),
     stop_loss:        _r5(stop_loss),
@@ -238,8 +267,20 @@ function _submit(input) {
     account_balance:  parseFloat(account_balance.toFixed(2)),
     risk_amount_usd:  parseFloat((account_balance * risk_pct).toFixed(2)),
     risk_pct:         parseFloat(risk_pct.toFixed(4)),
+
+    // ── Signal context (V5.2 — FREEZE-RULE-016) ──
+    signal_id,
+    market_regime,
+    signal_strength,
+    final_score,
+    final_confidence,
+    agents_agreeing,
+    agent_votes,    // { agentName: { vote, score } }
+    agent_scores,   // { agentName: score }
+    data_sources,   // { fred, finnhub, dxy, cot }
+
+    // ── Lifecycle (populated on close) ──
     status:           'open',
-    opened_at:        new Date().toISOString(),
     closed_at:        null,
     exit_price:       null,
     pnl_pips:         null,
@@ -248,8 +289,6 @@ function _submit(input) {
     exit_reason:      null,
     outcome:          null,
     duration_minutes: null,
-    signal_id,
-    validation_phase: _currentPhase(),
   });
 
   _trades.unshift(trade);
@@ -272,9 +311,9 @@ function _close(tradeId, exitPrice, exitReason) {
     return { error: 'already_closed', message: `Trade ${tradeId} is already closed` };
   }
 
-  const exit    = parseFloat(exitPrice) || trade.entry_price;
+  const exit     = parseFloat(exitPrice) || trade.entry_price;
   const openedMs = new Date(trade.opened_at).getTime();
-  const duration  = Math.round((Date.now() - openedMs) / 60000);  // minutes
+  const duration = Math.round((Date.now() - openedMs) / 60000);  // minutes
 
   // P&L calculation
   const pipSign  = trade.direction === 'SELL'
@@ -304,16 +343,18 @@ function _close(tradeId, exitPrice, exitReason) {
   _trades[idx] = closed;
 
   // Store result for Learning Engine
+  // Includes regime and data_sources from trade context (V5.2)
   const result = {
-    trade_id:    closed.id,
-    signal_id:   closed.signal_id,
+    trade_id:     closed.id,
+    signal_id:    closed.signal_id,
     outcome,
-    profit_pips: pnl_pips,
-    profit_r:    pnl_r,
-    profit_usd:  pnl_usd,
-    exit_reason: exitReason,
-    regime:      closed.regime ?? 'unknown',
-    closed_at:   closed.closed_at,
+    profit_pips:  pnl_pips,
+    profit_r:     pnl_r,
+    profit_usd:   pnl_usd,
+    exit_reason:  exitReason,
+    regime:       closed.market_regime ?? 'unknown',
+    data_sources: closed.data_sources  ?? {},
+    closed_at:    closed.closed_at,
   };
   _results.unshift(result);
 
@@ -330,7 +371,7 @@ function _close(tradeId, exitPrice, exitReason) {
 
 function _checkGoLive(winRate, profitFactor, totalClosed) {
   return totalClosed >= 100
-    && winRate     >= 0.60
+    && winRate      >= 0.60
     && profitFactor >= 1.50;
 }
 
@@ -359,13 +400,45 @@ function _emit(eventName, data) {
 }
 
 // ─────────────────────────────────────────────
+// MIGRATION — V5.2
+// ─────────────────────────────────────────────
+
+/**
+ * Applies default values for V5.2 context fields to a trade record
+ * that was stored before V5.2 (i.e. missing market_regime, agent_votes, etc.).
+ * Called on every record loaded from localStorage.
+ *
+ * Safe to call on already-migrated records (existing values are preserved).
+ *
+ * @param {object} trade - raw record from localStorage
+ * @returns {object}     - record with all V5.2 fields present
+ */
+function _migrateTrade(trade) {
+  return {
+    ...trade,
+    market_regime:    trade.market_regime    ?? 'unknown',
+    signal_strength:  trade.signal_strength  ?? 'UNKNOWN',
+    final_score:      trade.final_score      ?? 50,
+    final_confidence: trade.final_confidence ?? 0,
+    agents_agreeing:  trade.agents_agreeing  ?? 0,
+    agent_votes:      trade.agent_votes      ?? {},
+    agent_scores:     trade.agent_scores     ?? {},
+    data_sources:     trade.data_sources     ?? {},
+  };
+}
+
+// ─────────────────────────────────────────────
 // PERSISTENCE
 // ─────────────────────────────────────────────
 
 function _loadTrades() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // Apply V5.2 migration to every loaded record
+    return parsed.map(_migrateTrade);
   } catch (_) { return []; }
 }
 
@@ -390,7 +463,7 @@ function _persistResults() {
 
 /**
  * @typedef {Object} TradeInput
- * @property {string}      direction        - 'BUY'|'SELL'
+ * @property {string}      direction
  * @property {number}      entry_price
  * @property {number}      stop_loss
  * @property {number}      [take_profit_1]
@@ -399,11 +472,21 @@ function _persistResults() {
  * @property {number}      [account_balance]
  * @property {number}      [risk_pct]
  * @property {string|null} [signal_id]
+ * @property {string}      [market_regime]
+ * @property {string}      [signal_strength]
+ * @property {number}      [final_score]
+ * @property {number}      [final_confidence]
+ * @property {number}      [agents_agreeing]
+ * @property {object}      [agent_votes]     { agentName: { vote, score } }
+ * @property {object}      [agent_scores]    { agentName: score }
+ * @property {object}      [data_sources]    { fred, finnhub, dxy, cot }
  */
 
 /**
  * @typedef {Object} PaperTradeRecord
  * @property {string}       id
+ * @property {string}       opened_at
+ * @property {number}       validation_phase
  * @property {string}       direction
  * @property {number}       entry_price
  * @property {number}       stop_loss
@@ -416,8 +499,16 @@ function _persistResults() {
  * @property {number}       account_balance
  * @property {number}       risk_amount_usd
  * @property {number}       risk_pct
- * @property {string}       status          - 'open'|'closed'|'cancelled'
- * @property {string}       opened_at
+ * @property {string|null}  signal_id
+ * @property {string}       market_regime
+ * @property {string}       signal_strength
+ * @property {number}       final_score
+ * @property {number}       final_confidence
+ * @property {number}       agents_agreeing
+ * @property {object}       agent_votes
+ * @property {object}       agent_scores
+ * @property {object}       data_sources
+ * @property {string}       status           'open'|'closed'
  * @property {string|null}  closed_at
  * @property {number|null}  exit_price
  * @property {number|null}  pnl_pips
@@ -426,8 +517,6 @@ function _persistResults() {
  * @property {string|null}  exit_reason
  * @property {string|null}  outcome
  * @property {number|null}  duration_minutes
- * @property {string|null}  signal_id
- * @property {number}       validation_phase
  */
 
 /**

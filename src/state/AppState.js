@@ -282,7 +282,7 @@ export function setSignalResult(result) {
   // ── 3. Append to signal history (V5.2, AFTER dispatch) ──
   // Wrapped in try/catch: history errors must NEVER affect signal pipeline.
   try {
-    const entry = _buildHistoryEntry(result.signal, result.votes);
+    const entry = _buildHistoryEntry(result.signal, result.votes, result.data_sources ?? null);
     if (entry) {
       _state.signalHistory.unshift(entry);
       // Enforce ring buffer cap
@@ -400,7 +400,8 @@ try {
  * @param {Vote[]} votes
  * @returns {SignalHistoryEntry|null}
  */
-function _buildHistoryEntry(signal, votes) {
+function _buildHistoryEntry(signal, votes, data_sources) {
+  const result_data_sources = data_sources ?? null;
   if (!signal) return null;
 
   // Build compact agent_votes: { agentName: { vote, score } }
@@ -454,6 +455,13 @@ function _buildHistoryEntry(signal, votes) {
       drawdown_pass:        signal.gates.drawdown_pass        ?? false,
       regime_pass:          signal.gates.regime_pass          ?? false,
     } : {},
+
+    // Agent agreement count (from signal, not recomputed)
+    agents_agreeing: signal.agents_agreeing ?? 0,
+
+    // Data source status per service (FREEZE-RULE-014)
+    // Populated by generateSignal() via result.data_sources
+    data_sources: result_data_sources ?? {},
 
     // Agent votes — compact only (FREEZE-RULE-012)
     agent_votes,

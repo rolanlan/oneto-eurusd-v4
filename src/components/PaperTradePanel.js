@@ -395,7 +395,26 @@ function _attachEvents() {
 }
 
 function _handleSubmit() {
+  // V5.2 (FREEZE-RULE-016): read signal context from AppState and pass to
+  // PaperExecution so trade records store full signal metadata.
+  const sig   = AppState.getLastSignal();
+  const votes = AppState.getLastVotes();
+
+  // Build compact agent_votes { agentName: { vote, score } }
+  // and agent_scores { agentName: score } from current votes array.
+  const agent_votes  = {};
+  const agent_scores = {};
+  if (Array.isArray(votes)) {
+    for (const v of votes) {
+      if (v?.agent) {
+        agent_votes[v.agent]  = { vote: v.vote ?? 'NEUTRAL', score: v.score ?? 50 };
+        agent_scores[v.agent] = v.score ?? 50;
+      }
+    }
+  }
+
   const result = PaperExecution.submitTrade({
+    // Core trade fields
     direction:     _form.direction,
     entry_price:   _form.entry_price || AppState.getCurrentPrice(),
     stop_loss:     _form.stop_loss,
@@ -404,7 +423,18 @@ function _handleSubmit() {
     lot_size:      _form.lot_size || 0.01,
     account_balance: 1000,
     risk_pct:      0.02,
-    signal_id:     AppState.getLastSignal()?.id ?? null,
+
+    // Signal context (FREEZE-RULE-016)
+    signal_id:       sig?.id              ?? null,
+    market_regime:   sig?.market_regime   ?? 'unknown',
+    signal_strength: sig?.signal_strength ?? 'UNKNOWN',
+    final_score:     sig?.final_score     ?? 50,
+    final_confidence: sig?.final_confidence ?? 0,
+    agents_agreeing: sig?.agents_agreeing ?? 0,
+    agent_votes,
+    agent_scores,
+    // data_sources injected into signal by generateSignal() via Fix-1
+    data_sources:    sig?.data_sources    ?? {},
   });
 
   if (result?.error) {

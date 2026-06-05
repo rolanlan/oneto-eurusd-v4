@@ -340,7 +340,19 @@
       try {
         const accountProfile = AccountState.get();
         const memoryLayer    = await MemoryAggregator.getMemoryLayer();
-        const result         = await SignalEngine.run({ accountProfile, memoryLayer });
+       const result         = await SignalEngine.run({ accountProfile, memoryLayer });
+
+        // Fix-1 (V5.2): inject data_sources from MemoryAggregator status
+        // so SignalHistory records FRED/Finnhub/DXY/COT source per signal
+        // (FREEZE-RULE-014). getStatus() is a cheap in-memory read — no fetch.
+        const status = MemoryAggregator.getStatus();
+        result.data_sources = {
+          fred:    status?.fred?.status ?? 'stub',
+          finnhub: status?.news?.status ?? 'stub',
+          dxy:     status?.dxy?.status  ?? 'stub',
+          cot:     status?.cot?.status  ?? 'stub',
+        };
+
         AppState.setSignalResult(result);
         _firstRunDone = true;
       } catch (err) {
