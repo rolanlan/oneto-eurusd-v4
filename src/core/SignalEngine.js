@@ -12,20 +12,15 @@
  *   WEAK_SELL / SELL / STRONG_SELL / NO_TRADE
  *
  * MTF gate is run inside CommitteeOrchestrator.
- * NOT_ALIGNED → immediate NO_TRADE.
+ * NOT_ALIGNED → NO_TRADE but votes are still preserved for CommitteePanel.
  *
- * FIXES (Phase 5B-1):
- *   BUG-03: Replaced CommitteeEngine (Phase 1 inline monolith) with
- *           CommitteeOrchestrator (Phase 4A standalone agents).
- *           CommitteeOrchestrator internally runs RegimeEngine + MTFEngine
- *           + all 5 independent agent files.
+ * FIXES:
+ *   BUG-03: Replaced CommitteeEngine with CommitteeOrchestrator.
+ *   BUG-04: Replaced private _resolveWeights with REGIME_WEIGHTS[regime].
+ *   BUG-10: MTF gate fail now returns real votes (not []) so CommitteePanel
+ *           can display all 5 agent scores instead of showing "—" for all.
  *
- *   BUG-04: Replaced CommitteeEngine._resolveWeights?.(regime, null)
- *           (private function, always undefined) with
- *           REGIME_WEIGHTS[regime] ?? DEFAULT_WEIGHTS
- *           imported directly from Vote.js — the single source of truth.
- *
- * Architecture Freeze V4.0-R1 | Phase 5B-1
+ * Architecture Freeze V4.0-R1 | Phase 5B-1 | V4.6
  */
 
 'use strict';
@@ -49,7 +44,6 @@ import {
   DEFAULT_WEIGHTS,
 } from '../types/Vote.js';
 
-// BUG-03 FIX: Use CommitteeOrchestrator (standalone agents) instead of CommitteeEngine (inline monolith)
 import * as CommitteeOrchestrator from '../agents/CommitteeOrchestrator.js';
 import * as RiskManager           from './RiskManager.js';
 import * as MarketSnapshotEngine  from './MarketSnapshotEngine.js';
@@ -78,7 +72,6 @@ export async function run(params = {}) {
 
 /**
  * Runs a synchronous decision cycle using pre-loaded candles.
- * Used when candles are already available (no async fetch needed).
  *
  * @param {SignalEngineSyncParams} params
  * @returns {SignalEngineResult}
@@ -104,7 +97,6 @@ async function _run(params) {
     forceRefresh = false,
   } = params;
 
-  // ── Step A: Fetch market data ──
   const [priceResult, candles4hResult, candles1dResult, candles1hResult] = await Promise.all([
     DataProvider.getPrice(),
     DataProvider.getCandles('4H', 80),
@@ -140,19 +132,12 @@ function _runSync(params) {
     weights        = null,
   } = params;
 
-  // ── Step 1: Compute indicators (for snapshot + downstream use) ──
+  // ── Step 1: Compute indicators ──
   const ind = MarketSnapshotEngine.computeIndicators(candles4h);
   if (currentPrice > 0) ind.price = currentPrice;
   else if (candles4h.length > 0) ind.price = candles4h[candles4h.length - 1].close;
 
   // ── Step 2: Run CommitteeOrchestrator ──
-  // BUG-03 FIX: CommitteeOrchestrator internally runs:
-  //   RegimeEngine.run() → classifies market regime
-  //   MTFEngine.run()    → multi-timeframe alignment gate
-  //   All 5 agent files  → TechnicalAnalyst, MacroAnalyst, PositioningAnalyst,
-  //                        NewsAnalyst, RiskAnalyst
-  // It returns committeeOutput containing: votes, verdict, mtf_result, regime,
-  // weights (regime-adjusted), regime_result
   const committeeOutput = CommitteeOrchestrator.run({
     candles:         candles4h,
     candles_1d:      candles1d,
@@ -164,10 +149,13 @@ function _runSync(params) {
 
   const { votes, verdict, mtf_result: mtfResult, regime, weights: effectiveWeights } = committeeOutput;
 
-  // ── Step 3: MTF gate check (gate was run inside CommitteeOrchestrator) ──
+  // ── Step 3: MTF gate check ──
+  // BUG-10 FIX: Pass real votes (not []) even when MTF gate fails.
+  // CommitteePanel needs the votes array to render all 5 agent scores.
+  // Previously returning votes:[] caused all agents to show "—".
   if (!mtfResult.gate_pass) {
     const snap = MarketSnapshotEngine.captureAndSave({
-      indicatorResult: ind, regime, mtfResult, votes: [],
+      indicatorResult: ind, regime, mtfResult, votes,
       price: ind.price, data_source: dataSource,
     });
     const signal = createNoTradeSignal('MTF_NOT_ALIGNED', {
@@ -177,7 +165,8 @@ function _runSync(params) {
       snapshot_id:        snap.snap.id,
       entry_price:        ind.price,
     });
-    return { signal, votes: [], verdict: null, mtfResult, regime, snapshot: snap.snap };
+    // Return real votes and verdict so CommitteePanel renders correctly
+    return { signal, votes, verdict, mtfResult, regime, snapshot: snap.snap };
   }
 
   // ── Step 4: Decision Engine (8-state mapping) ──
@@ -271,47 +260,22 @@ function _runSync(params) {
     mtfResult,
     votes,
     price:       ind.price,
-    signal_id:   signal.id,
     data_source: dataSource,
+    signal,
   });
 
-  return {
-    signal,
-    votes,
-    verdict,
-    mtfResult,
-    regime,
-    riskResult,
-    snapshot: snap,
-  };
+  return { signal, votes, verdict, mtfResult, regime, snapshot: snap };
 }
 
 // ─────────────────────────────────────────────
-// DECISION ENGINE — 8-STATE MAPPING
+// DECISION ENGINE
 // ─────────────────────────────────────────────
 
-/**
- * Maps committee votes to an 8-state signal decision.
- * BUG-04 FIX: Weight resolution now reads directly from Vote.js REGIME_WEIGHTS
- * and DEFAULT_WEIGHTS — the single source of truth. No longer accesses the
- * private CommitteeEngine._resolveWeights function (which was always undefined).
- *
- * @param {Vote[]}          votes
- * @param {CommitteeVerdict} verdict
- * @param {MTFResult}       mtfResult
- * @param {string}          regime
- * @param {AccountProfile}  profile
- * @param {WeightConfig}    orchestratorWeights  - weights already resolved by CommitteeOrchestrator
- * @returns {DecisionSummary}
- */
 function _decide(votes, verdict, mtfResult, regime, profile, orchestratorWeights) {
   const min_confidence = profile.min_confidence      ?? 65;
   const min_rr         = profile.min_rr_ratio        ?? 2.0;
   const min_agents     = 3;
 
-  // BUG-04 FIX: Use REGIME_WEIGHTS[regime] ?? DEFAULT_WEIGHTS from Vote.js directly.
-  // Priority: CommitteeOrchestrator already resolved the correct weights for this cycle;
-  // use those if valid, otherwise fall back through the same hierarchy as Vote.js.
   const resolvedWeights = (orchestratorWeights && _weightsValid(orchestratorWeights))
     ? orchestratorWeights
     : (REGIME_WEIGHTS[regime] ?? DEFAULT_WEIGHTS);
@@ -319,18 +283,15 @@ function _decide(votes, verdict, mtfResult, regime, profile, orchestratorWeights
   const riskWeight = resolvedWeights.risk ?? DEFAULT_WEIGHTS.risk;
   const wSum       = 1 - riskWeight;
 
-  // Directional score: weighted average of directional agents (excludes Risk)
   let dirScore = 0;
   for (const v of votes) {
     if (v.agent !== AGENT.RISK) {
-      // Use the weight that was actually applied by CommitteeOrchestrator for this agent
       const agentWeight = v.weight ?? (resolvedWeights[v.agent] ?? 0);
       dirScore += v.score * (wSum > 0 ? agentWeight / wSum : 0);
     }
   }
   dirScore = Math.max(0, Math.min(100, Math.round(dirScore)));
 
-  // Confidence with adjustments
   const baseConf    = Math.abs(dirScore - 50) * 2;
   const riskVote    = votes.find(v => v.agent === AGENT.RISK);
   const riskScore   = riskVote?.score ?? 50;
@@ -338,20 +299,15 @@ function _decide(votes, verdict, mtfResult, regime, profile, orchestratorWeights
   const confAdj     = mtfResult.confidence_adj ?? 0;
   const finalConf   = Math.max(0, Math.min(100, Math.round(baseConf - riskPenalty + confAdj)));
 
-  // Direction
   const direction = dirScore > 55
     ? SIGNAL_DIRECTION.SELL
     : dirScore < 45
       ? SIGNAL_DIRECTION.BUY
       : SIGNAL_DIRECTION.NEUTRAL;
 
-  // Agent agreement
   const agentsAgreeing = countAgentsAgreeing(votes, direction);
-
-  // RR ratio (uses default pips for gate check — actual levels computed in Step 5)
   const rrRatio = DEFAULT_PIPS.TP2 / DEFAULT_PIPS.SL;
 
-  // ── Gate checks ──
   const gates = {
     mtf_pass:             mtfResult.gate_pass !== false,
     confidence_pass:      finalConf   >= min_confidence,
@@ -361,7 +317,6 @@ function _decide(votes, verdict, mtfResult, regime, profile, orchestratorWeights
     regime_pass:          !(regime === 'volatile' && riskScore > 80),
   };
 
-  // Any gate failure → NO_TRADE
   const failedGate = Object.entries(gates).find(([, v]) => !v);
   if (failedGate) {
     const reasonMap = {
@@ -383,7 +338,6 @@ function _decide(votes, verdict, mtfResult, regime, profile, orchestratorWeights
     };
   }
 
-  // ── 8-state mapping ──
   const strength = _mapToStrength(dirScore, finalConf, agentsAgreeing, direction);
 
   return {
@@ -469,7 +423,6 @@ function _buildExplanation(votes, regime, mtfResult) {
     });
   }
 
-  // MTF context
   if (mtfResult) {
     items.push({
       category: 'mtf',
@@ -486,12 +439,6 @@ function _buildExplanation(votes, regime, mtfResult) {
   return items;
 }
 
-/**
- * Lightweight reason translation for Phase 1–5.
- * Phase 6 replaces with Claude API translations.
- * @param {string} reason_en
- * @returns {string}
- */
 function _translateReason(reason_en) {
   if (!reason_en) return '';
   const patterns = [
@@ -598,7 +545,6 @@ function _emergencyNoTrade(errorMsg) {
  * @property {CommitteeVerdict|null} verdict
  * @property {MTFResult}           mtfResult
  * @property {string}              regime
- * @property {RiskResult}          [riskResult]
  * @property {MarketSnapshot}      [snapshot]
  * @property {string}              [error]
  */
