@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ONETO V4.6 — API 验证工具</title>
+<style>
+  body { font-family: monospace; background: #f7f8fa; padding: 24px; color: #111; }
+  h1   { font-size: 1.1rem; margin-bottom: 16px; }
+  .row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  input { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px;
+          width: 340px; font-family: monospace; font-size: 0.85rem; }
+  button { padding: 6px 16px; background: #4f46e5; color: #fff; border: none;
+           border-radius: 4px; cursor: pointer; font-size: 0.84rem; }
+  button:hover { background: #4338ca; }
+  .result { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px;
+            padding: 12px 16px; margin-bottom: 16px; white-space: pre-wrap;
+            font-size: 0.78rem; line-height: 1.6; max-height: 340px; overflow-y: auto; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px;
+           font-size: 0.7rem; font-weight: 700; border: 1px solid; margin-left: 8px; }
+  .live  { color: #16a34a; background: #f0fdf4; border-color: #bbf7d0; }
+  .stub  { color: #6b7280; background: #f3f4f6; border-color: #e5e7eb; }
+  .cache { color: #d97706; background: #fffbeb; border-color: #fde68a; }
+  .fail  { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+  label  { font-size: 0.8rem; color: #374151; display: block; margin-bottom: 4px; }
+  .section { margin-bottom: 28px; }
+  h2 { font-size: 0.9rem; color: #4f46e5; margin-bottom: 10px;
+       border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+</style>
+</head>
+<body>
+<h1>ONETO V4.6 — API 验证工具</h1>
+<p style="font-size:0.78rem;color:#6b7280;margin-bottom:20px">
+  在主应用同源打开此文件，或直接在此处填入 Key 测试。此页面不储存任何 Key。
+</p>
+
+<div class="section">
+  <h2>① FRED API 验证（BUG-03）</h2>
+  <div class="row">
+    <div>
+      <label>FRED API Key（stlouisfed.org 免费申请）</label>
+      <input id="fredKey" type="text" placeholder="your_fred_api_key">
+    </div>
+    <button onclick="testFRED()">测试 FRED</button>
+  </div>
+  <div id="fredResult" class="result" style="color:#9ca3af">等待测试...</div>
+</div>
+
+<div class="section">
+  <h2>② Finnhub News 验证（BUG-04）</h2>
+  <div class="row">
+    <div>
+      <label>Finnhub API Key（finnhub.io 免费申请）</label>
+      <input id="finnhubKey" type="text" placeholder="your_finnhub_key">
+    </div>
+    <button onclick="testFinnhub()">测试 Finnhub</button>
+  </div>
+  <div id="finnhubResult" class="result" style="color:#9ca3af">等待测试...</div>
+</div>
+
+<div class="section">
+  <h2>③ Finnhub Calendar 验证（BUG-04）</h2>
+  <div id="calendarResult" class="result" style="color:#9ca3af">
+    点击「测试 Finnhub」后自动运行
+  </div>
+</div>
+
+<div class="section">
+  <h2>④ BUG-09 评分公式</h2>
+  <div class="result" style="background:#f8f9ff">
+<b>AI Committee 顶部 N%（一致性 / Alignment）</b>
+来源文件: src/types/Vote.js → aggregateVotes()
+公式:
+  sell_weight = Σ agent.weight × (0.5 if RISK else 1.0)  for agents voting SELL
+  buy_weight  = Σ agent.weight × (0.5 if RISK else 1.0)  for agents voting BUY
+  confidence  = round( max(sell_weight, buy_weight) × 100 )
+
+示例（4代理投SELL，权重0.30+0.20+0.20+0.15，RISK折半0.15×0.5=0.075）:
+  sell_weight = 0.30+0.20+0.20+0.075 = 0.775 → confidence = 78%
+含义: 占优方向的加权投票占比。85% = 委员会85%权重偏向同一方向。
+
+<b>Decision Engine N（方向评分 / Direction Score）</b>
+来源文件: src/core/SignalEngine.js → _decide()
+公式:
+  wSum     = 1 − risk_weight
+  dirScore = round( Σ (agent.score × agent.weight / wSum) )  排除Risk代理
+
+含义: 0=纯做多，50=中性，100=纯做空
+触发: >55 → SELL；<45 → BUY；45–55 → NEUTRAL
+72 含义: 方向偏空，接近标准阈值55，未达强烈卖出水平。
+
+<b>Confidence %（置信度）</b>
+公式:
+  baseConf    = |dirScore − 50| × 2
+  riskPenalty = max(0, (riskScore − 55) × 0.3)
+  finalConf   = clamp(0,100, baseConf − riskPenalty + MTFadj)
+
+dirScore=72 → baseConf = |72−50|×2 = 44%
+低于 min_confidence 65% → 触发 LOW_CONFIDENCE → NO_TRADE 门控
+  </div>
+</div>
+
+<script>
+const FRED_BASE    = 'https://api.stlouisfed.org/fred/series/observations';
+const FINNHUB_BASE = 'https://finnhub.io/api/v1';
+
+function badge(src) {
+  const cls = src==='live' ? 'live' : src==='cached' ? 'cache' : src==='stub' ? 'stub' : 'fail';
+  return `<span class="badge ${cls}">${src.toUpperCase()}</span>`;
+}
+
+async function testFRED() {
+  const key = document.getElementById('fredKey').value.trim();
+  const el  = document.getElementById('fredResult');
+  if (!key) { el.textContent = '请先填入 FRED API Key'; return; }
+  el.textContent = '请求中...';
+
+  const series = [
+    ['DGS10',               'us10y_yield'],
+    ['IRLTLT01DEM156N',     'de10y_yield'],
+    ['A191RL1Q225SBEA',     'gdp_us_qoq'],
+    ['CPIAUCSL',            'cpi_us_raw'],
+    ['VIXCLS',              'vix_level'],
+    ['UNRATE',              'unemployment_us'],
+  ];
+
+  const results = {};
+  let allOk = true;
+
+  for (const [id, label] of series) {
+    try {
+      const url = `${FRED_BASE}?series_id=${id}&api_key=${key}`
+                + `&file_type=json&sort_order=desc&limit=2`;
+      const res  = await fetch(url);
+      const json = await res.json();
+      if (json.error_message) {
+        results[label] = `ERROR: ${json.error_message}`;
+        allOk = false;
+      } else {
+        const obs = json.observations?.find(o => o.value !== '.');
+        results[label] = obs ? parseFloat(obs.value) : 'N/A';
+      }
+    } catch (e) {
+      results[label] = `FETCH_ERROR: ${e.message}`;
+      allOk = false;
+    }
+  }
+
+  if (typeof results.us10y_yield === 'number' &&
+      typeof results.de10y_yield === 'number') {
+    results.us_de_spread = parseFloat(
+      (results.us10y_yield - results.de10y_yield).toFixed(3)
+    );
+  }
+  results.data_source = allOk ? 'live' : 'partial';
+
+  const json = JSON.stringify(results, null, 2)
+    .replace(/"us_de_spread": ([^,\n]+)/,
+      '<b style="color:#4f46e5">"us_de_spread": $1</b>  ← 真实值(DEFAULT_MEMORY固定为2.0)')
+    .replace(/"vix_level": ([^,\n]+)/,
+      '<b style="color:#4f46e5">"vix_level": $1</b>  ← 真实值(DEFAULT_MEMORY固定为15.0)');
+
+  el.innerHTML = badge(results.data_source) + '\n\n' + json;
+}
+
+async function testFinnhub() {
+  const key    = document.getElementById('finnhubKey').value.trim();
+  const newsEl = document.getElementById('finnhubResult');
+  const calEl  = document.getElementById('calendarResult');
+  if (!key) { newsEl.textContent = '请先填入 Finnhub API Key'; return; }
+
+  newsEl.textContent = '获取新闻中...';
+  calEl.textContent  = '获取日历中...';
+
+  // NEWS
+  try {
+    const res  = await fetch(`${FINNHUB_BASE}/news?category=forex&token=${key}`);
+    if (res.status === 401) {
+      newsEl.innerHTML = badge('fail') + ' 401 Unauthorized — Key 无效或未激活';
+      calEl.innerHTML  = badge('fail') + ' 跳过（News 失败）';
+      return;
+    }
+    const json = await res.json();
+    if (json.error) {
+      newsEl.innerHTML = badge('fail') + ' ' + json.error;
+      return;
+    }
+    const relevant = json.filter(a =>
+      /eur|usd|ecb|fed|fomc|cpi|nfp|rate/i.test(
+        (a.headline || '') + ' ' + (a.summary || '')
+      )
+    );
+    const result = {
+      data_source:       'live',
+      total_articles:    json.length,
+      relevant_articles: relevant.length,
+      fetched_at:        new Date().toISOString(),
+      sample_headlines:  json.slice(0, 3).map(a => a.headline),
+    };
+    newsEl.innerHTML = badge('live') + '\n\n' + JSON.stringify(result, null, 2);
+  } catch (e) {
+    newsEl.innerHTML = badge('fail') + ' ' + e.message;
+  }
+
+  // CALENDAR
+  try {
+    const today = new Date();
+    const from  = today.toISOString().slice(0, 10);
+    const to    = new Date(today.getTime() + 7 * 86400000)
+                    .toISOString().slice(0, 10);
+    const res   = await fetch(
+      `${FINNHUB_BASE}/calendar/economic?from=${from}&to=${to}&token=${key}`
+    );
+    const json  = await res.json();
+    const events = (json.economicCalendar ?? [])
+      .filter(e => ['US','EU','DE'].includes(e.country) && e.impact === 'high')
+      .slice(0, 5)
+      .map(e => ({ time: e.time, event: e.event, country: e.country }));
+    const result = {
+      data_source:          'live',
+      high_impact_next_7d:  events.length,
+      fetched_at:           new Date().toISOString(),
+      events,
+    };
+    calEl.innerHTML = badge('live') + '\n\n' + JSON.stringify(result, null, 2);
+  } catch (e) {
+    calEl.innerHTML = badge('fail') + ' ' + e.message;
+  }
+}
+</script>
+</body>
+</html>

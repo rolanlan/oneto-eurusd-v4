@@ -313,11 +313,19 @@ function _buildScoreDisplay(signal, lang) {
       <div class="score-block">
         <div class="score-number score-number-${scoreCls}">${score}</div>
         <div class="score-direction">${direction}</div>
-        <div class="score-sublabel">${t('decision.finalScore')}</div>
+        <div class="score-sublabel"
+             title="${lang === 'zh'
+               ? '方向分 = 4个方向性代理的加权均值(排除风险代理)，>55=空，<45=多'
+               : 'Direction score = weighted avg of 4 directional agents (excl Risk). >55=SELL, <45=BUY'}"
+        >${lang === 'zh' ? '方向评分 (>55空/<45多)' : 'Dir Score (>55 SELL/<45 BUY)'}</div>
       </div>
       <div class="score-block">
         <div class="conf-number">${conf}%</div>
-        <div class="conf-sublabel">${t('signal.confidence')}</div>
+        <div class="conf-sublabel"
+             title="${lang === 'zh'
+               ? '置信度 = |方向分-50|×2 - 风险惩罚 + MTF调整。低于65%触发NO_TRADE'
+               : 'Confidence = |dirScore-50|×2 − riskPenalty + MTFadj. <65% → NO_TRADE'}"
+        >${t('signal.confidence')}</div>
         <div class="conf-meter-track">
           <div class="conf-meter-fill conf-${_confLevel(conf)}"
                style="width:${conf}%"></div>

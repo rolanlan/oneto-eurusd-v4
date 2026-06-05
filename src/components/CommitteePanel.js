@@ -130,7 +130,13 @@ function _buildVerdictBar(verdict, signal, lang) {
   return `
     <div class="verdict-bar verdict-${dirCls}">
       <div class="verdict-direction">${dirLabel}</div>
-      <div class="verdict-confidence">${conf}% · ${agreeLabel}</div>
+      <div class="verdict-confidence"
+           title="${lang === 'zh'
+             ? '委员会一致性 = max(卖方权重, 买方权重) × 100，风险代理权重折半'
+             : 'Committee alignment = max(sell_weight, buy_weight) × 100. Risk agent weight × 0.5'}"
+      >
+        ${lang === 'zh' ? '一致性' : 'Alignment'} ${conf}% · ${agreeLabel}
+      </div>
       <div class="verdict-weight-track">
         <div class="verdict-weight-sell" style="width:${sellPct}%"></div>
         <div class="verdict-weight-buy"  style="width:${buyPct}%"></div>
