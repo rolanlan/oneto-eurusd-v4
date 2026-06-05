@@ -5,8 +5,14 @@
  * Single source of truth for candle arrays, current price,
  * last signal, active weights, and regime.
  *
- * Does NOT persist to localStorage (runtime state only).
- * AccountState.js handles all persistence.
+ * V5.2: Added signal history ring buffer (max 200 entries).
+ *   - _state.signalHistory[] — compact SignalHistoryEntry records
+ *   - getSignalHistory(n)    — exported read accessor
+ *   - History written AFTER _dispatch() so history errors never block events
+ *   - localStorage key: 'oneto_signal_history_v5' (separate from runtime state)
+ *
+ * FREEZE-RULE-012 compliant: agent_votes stores only { vote, score } per agent.
+ * No reason strings, no full explanation arrays.
  *
  * Event bus — components subscribe to:
  *   'stateUpdated'    — candles / price refreshed
@@ -14,7 +20,7 @@
  *   'regimeChanged'   — regime classification changed
  *
  * Interface Contract 10 compliant.
- * Architecture Freeze V4.0-R1 | Phase 2
+ * Architecture Freeze V4.0-R1 | Phase 2 | V5.2 signal history
  */
 
 'use strict';
@@ -22,6 +28,13 @@
 import * as DataProvider from '../core/DataProvider.js';
 import * as AccountState from './AccountState.js';
 import { DEFAULT_WEIGHTS } from '../types/Vote.js';
+
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+
+const HISTORY_KEY      = 'oneto_signal_history_v5';
+const HISTORY_MAX      = 200;   // ring buffer cap (FREEZE-RULE-012)
 
 // ─────────────────────────────────────────────
 // INTERNAL STATE
@@ -41,6 +54,11 @@ const _state = {
   lastSignal:  null,
   lastVotes:   [],
   lastVerdict: null,
+
+  // ── Signal History (V5.2) ──
+  // Compact ring buffer — max HISTORY_MAX entries, newest first.
+  // Loaded from localStorage at module init; persisted after each signal.
+  signalHistory: _loadHistory(),
 
   // ── Regime ──
   lastRegime:  null,
@@ -130,6 +148,26 @@ export function isRefreshing() {
 }
 
 /**
+ * Returns the last N signal history entries, newest first.
+ * Returns a shallow copy of each entry — callers must not mutate.
+ *
+ * @param {number} [n=50]  — number of entries to return (max HISTORY_MAX)
+ * @returns {SignalHistoryEntry[]}
+ */
+export function getSignalHistory(n = 50) {
+  const count = Math.min(Math.max(1, n), HISTORY_MAX);
+  return _state.signalHistory.slice(0, count).map(e => ({ ...e }));
+}
+
+/**
+ * Returns the total number of signals recorded in history.
+ * @returns {number}
+ */
+export function getSignalCount() {
+  return _state.signalHistory.length;
+}
+
+/**
  * Returns a snapshot of the full state (read-only copy).
  * @returns {AppStateSnapshot}
  */
@@ -148,6 +186,7 @@ export function getSnapshot() {
     lastRegime:   _state.lastRegime,
     weights:      { ..._state.weights },
     lastRefresh:  _state.lastRefresh,
+    signalCount:  _state.signalHistory.length,
   };
 }
 
@@ -208,6 +247,9 @@ export async function refreshAll() {
  * Stores the result of a completed signal generation cycle.
  * Dispatches 'signalGenerated' and (if regime changed) 'regimeChanged'.
  *
+ * V5.2: After dispatching events, appends a compact history entry.
+ * History operations are isolated in try/catch — they cannot block event dispatch.
+ *
  * @param {SignalEngineResult} result
  */
 export function setSignalResult(result) {
@@ -215,11 +257,14 @@ export function setSignalResult(result) {
 
   const prevRegime = _state.lastRegime;
 
+  // ── 1. Update live state ────────────────────
   _state.lastSignal  = result.signal  ?? null;
   _state.lastVotes   = result.votes   ?? [];
   _state.lastVerdict = result.verdict ?? null;
   _state.lastRegime  = result.regime  ?? null;
 
+  // ── 2. Dispatch events (MUST happen before history) ─────
+  // If history throws, events have already fired — existing panels are safe.
   _dispatch('signalGenerated', {
     signal:    _state.lastSignal,
     votes:     _state.lastVotes,
@@ -233,6 +278,22 @@ export function setSignalResult(result) {
       current: result.regime,
     });
   }
+
+  // ── 3. Append to signal history (V5.2, AFTER dispatch) ──
+  // Wrapped in try/catch: history errors must NEVER affect signal pipeline.
+  try {
+    const entry = _buildHistoryEntry(result.signal, result.votes);
+    if (entry) {
+      _state.signalHistory.unshift(entry);
+      // Enforce ring buffer cap
+      if (_state.signalHistory.length > HISTORY_MAX) {
+        _state.signalHistory.length = HISTORY_MAX;
+      }
+      _persistHistory();
+    }
+  } catch (histErr) {
+    console.warn('[AppState] History write error (non-fatal):', histErr.message);
+  }
 }
 
 /**
@@ -244,6 +305,15 @@ export function setSignalResult(result) {
 export function setWeights(weights) {
   if (!weights) return;
   _state.weights = { ...DEFAULT_WEIGHTS, ...weights };
+}
+
+/**
+ * Clears the signal history (both in-memory and localStorage).
+ * Use with caution — this is permanent for the current session.
+ */
+export function clearSignalHistory() {
+  _state.signalHistory = [];
+  try { localStorage.removeItem(HISTORY_KEY); } catch (_) {}
 }
 
 // ─────────────────────────────────────────────
@@ -319,6 +389,110 @@ try {
 } catch (_) {}
 
 // ─────────────────────────────────────────────
+// SIGNAL HISTORY — INTERNAL HELPERS (V5.2)
+// ─────────────────────────────────────────────
+
+/**
+ * Builds a compact SignalHistoryEntry from a signal and votes array.
+ * Per FREEZE-RULE-012: agent_votes stores only { vote, score } — no reason strings.
+ *
+ * @param {Signal|null} signal
+ * @param {Vote[]} votes
+ * @returns {SignalHistoryEntry|null}
+ */
+function _buildHistoryEntry(signal, votes) {
+  if (!signal) return null;
+
+  // Build compact agent_votes: { agentName: { vote, score } }
+  // No reason_1, reason_2, or explanation (FREEZE-RULE-012)
+  const agent_votes = {};
+  if (Array.isArray(votes)) {
+    for (const v of votes) {
+      if (v?.agent) {
+        agent_votes[v.agent] = {
+          vote:  v.vote  ?? 'NEUTRAL',
+          score: v.score ?? 50,
+        };
+      }
+    }
+  }
+
+  return Object.freeze({
+    // Identity
+    id:               signal.id,
+    timestamp:        signal.timestamp ?? Date.now(),
+
+    // Classification
+    signal_strength:  signal.signal_strength  ?? 'NO_TRADE',
+    direction:        signal.direction         ?? 'NEUTRAL',
+    no_trade_reason:  signal.no_trade_reason   ?? null,
+
+    // Scores
+    final_score:      signal.final_score      ?? 50,
+    final_confidence: signal.final_confidence ?? 0,
+
+    // Price levels (key fields for performance attribution)
+    entry_price:      signal.entry_price   ?? 0,
+    stop_loss:        signal.stop_loss     ?? 0,
+    take_profit_2:    signal.take_profit_2 ?? 0,
+    sl_pips:          signal.sl_pips       ?? 0,
+    tp2_pips:         signal.tp2_pips      ?? 0,
+    lot_size:         signal.lot_size      ?? 0,
+    effective_risk_pct: signal.effective_risk_pct ?? 0,
+
+    // Context
+    market_regime:    signal.market_regime  ?? 'unknown',
+    mtf_state:        signal.mtf_state      ?? 'unknown',
+    timeframe:        signal.timeframe      ?? '4H',
+
+    // Gate results (all 6)
+    gates: signal.gates ? {
+      mtf_pass:             signal.gates.mtf_pass             ?? false,
+      confidence_pass:      signal.gates.confidence_pass      ?? false,
+      rr_pass:              signal.gates.rr_pass              ?? false,
+      agent_agreement_pass: signal.gates.agent_agreement_pass ?? false,
+      drawdown_pass:        signal.gates.drawdown_pass        ?? false,
+      regime_pass:          signal.gates.regime_pass          ?? false,
+    } : {},
+
+    // Agent votes — compact only (FREEZE-RULE-012)
+    agent_votes,
+  });
+}
+
+/**
+ * Loads signal history from localStorage.
+ * Returns an empty array if nothing is stored or parsing fails.
+ * Called once at module initialization.
+ *
+ * @returns {SignalHistoryEntry[]}
+ */
+function _loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // Enforce cap on load in case a previous version stored more
+    return parsed.slice(0, HISTORY_MAX);
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
+ * Persists the current in-memory signal history to localStorage.
+ * Silent on failure — localStorage may be unavailable or full.
+ */
+function _persistHistory() {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(_state.signalHistory));
+  } catch (_) {
+    // localStorage full or unavailable — non-fatal, history stays in memory
+  }
+}
+
+// ─────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────
 
@@ -355,4 +529,28 @@ function _dispatch(eventName, data) {
  * @property {string|null}        lastRegime
  * @property {WeightConfig}       weights
  * @property {number}             lastRefresh
+ * @property {number}             signalCount
+ */
+
+/**
+ * @typedef {Object} SignalHistoryEntry
+ * @property {string}   id
+ * @property {number}   timestamp
+ * @property {string}   signal_strength
+ * @property {string}   direction
+ * @property {string|null} no_trade_reason
+ * @property {number}   final_score
+ * @property {number}   final_confidence
+ * @property {number}   entry_price
+ * @property {number}   stop_loss
+ * @property {number}   take_profit_2
+ * @property {number}   sl_pips
+ * @property {number}   tp2_pips
+ * @property {number}   lot_size
+ * @property {number}   effective_risk_pct
+ * @property {string}   market_regime
+ * @property {string}   mtf_state
+ * @property {string}   timeframe
+ * @property {object}   gates
+ * @property {object}   agent_votes  — compact { agentName: { vote, score } }
  */
