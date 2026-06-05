@@ -106,6 +106,19 @@ export function refresh() {
   _loadAndDraw(_currentTf);
 }
 
+/**
+ * Forces the TradingView chart to resize to its current container dimensions.
+ * Call this after the #kline-dash-mount node is moved to a new parent (BUG-01 fix).
+ * Safe to call at any time — no-ops if chart not initialized.
+ */
+export function forceResize() {
+  if (!_tvChart || !_container) return;
+  const wrap = _container.querySelector('#tvChart');
+  if (wrap && wrap.clientWidth > 0) {
+    _tvChart.resize(wrap.clientWidth, wrap.clientHeight || 380);
+  }
+}
+
 // ─────────────────────────────────────────────
 // CHART INIT (called once only)
 // ─────────────────────────────────────────────
