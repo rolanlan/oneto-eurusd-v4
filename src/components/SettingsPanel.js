@@ -570,7 +570,7 @@ function _attachEvents() {
     if (btn) { btn.disabled = true; btn.textContent = getLang() === 'zh' ? '刷新中...' : 'Refreshing...'; }
     await Promise.allSettled([
       AppState.refreshAll(),
-      MemoryAggregator.refresh(),
+      MemoryAggregator.smartRefresh(),
     ]);
     _showFeedback('refresh-feedback', getLang() === 'zh' ? '数据已刷新' : 'Data refreshed', true);
     render();
@@ -634,11 +634,17 @@ async function _testKey(service, key) {
       if (service === 'td') {
         await AppState.refreshAll();
       }
-      // For FRED and Finnhub: clear MemoryAggregator caches and re-fetch.
-      // This converts the in-memory stub result into live data immediately.
-      if (service === 'fred' || service === 'finnhub') {
-        await MemoryAggregator.refresh();
-        // Re-render Settings to show updated status badges
+      // For FRED and Finnhub: clear circuit breaker + caches so new key triggers live fetch.
+      if (service === 'fred') {
+        FREDService.clearAuthFailure?.();
+        FREDService.clearCache?.();
+        await MemoryAggregator.smartRefresh();
+        render();
+      }
+      if (service === 'finnhub') {
+        FinnhubService.clearAuthFailure?.();
+        FinnhubService.clearCache?.();
+        await MemoryAggregator.smartRefresh();
         render();
       }
     }

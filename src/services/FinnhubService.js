@@ -4,21 +4,21 @@
  * Finnhub API client for forex news sentiment and economic calendar.
  * One API key covers both endpoints.
  *
- * BUG-04 FIX: /news?category=forex is a PREMIUM endpoint (returns 401 on
- * free tier). Changed to /news?category=general (free tier) with keyword
- * filtering to extract EUR/USD relevant articles.
+ * BUG-04 FIX: /news?category=forex is a PREMIUM endpoint (401 on free tier).
+ * Changed to /news?category=general (free tier) with keyword filtering.
  *
- * Endpoints used:
- *   GET /news?category=general             → general financial news (free)
- *   GET /calendar/economic?from=&to=       → upcoming economic events (free)
+ * Circuit breaker:
+ *   If 401 or 403 is received, set _authFailed = true.
+ *   No further requests until clearAuthFailure() is called
+ *   (happens automatically when key is updated via Settings).
  *
- * Cache strategy (V4.3 spec):
+ * Cache strategy:
  *   News:     4h memory / 4h localStorage
  *   Calendar: 1h memory / 2h localStorage
  *
  * Never throws. Always returns bundles (live, cached, or stub).
  *
- * V4.3 Data Integration | STEP 3 | BUG-04 fix V4.6
+ * V4.3 Data Integration | STEP 3 | BUG-04 + V4.6 refresh fix
  */
 
 'use strict';
@@ -27,19 +27,18 @@
 // CONFIGURATION
 // ─────────────────────────────────────────────
 
-const FINNHUB_BASE       = 'https://finnhub.io/api/v1';
-const STORAGE_KEY_API    = 'finnhub_api_key_v4';
-const STORAGE_KEY_NEWS   = 'oneto_news_v1';
-const STORAGE_KEY_CAL    = 'oneto_calendar_v1';
+const FINNHUB_BASE     = 'https://finnhub.io/api/v1';
+const STORAGE_KEY_API  = 'finnhub_api_key_v4';
+const STORAGE_KEY_NEWS = 'oneto_news_v1';
+const STORAGE_KEY_CAL  = 'oneto_calendar_v1';
 
 const TTL = Object.freeze({
-  NEWS_MEM:   4  * 60 * 60 * 1000,
-  NEWS_LS:    4  * 60 * 60 * 1000,
-  CAL_MEM:    1  * 60 * 60 * 1000,
-  CAL_LS:     2  * 60 * 60 * 1000,
+  NEWS_MEM: 4 * 60 * 60 * 1000,
+  NEWS_LS:  4 * 60 * 60 * 1000,
+  CAL_MEM:  1 * 60 * 60 * 1000,
+  CAL_LS:   2 * 60 * 60 * 1000,
 });
 
-/** Keywords indicating USD bullish sentiment */
 const USD_BULLISH_KW = [
   'fed hawkish', 'rate hike', 'rate increase', 'strong gdp', 'strong jobs',
   'nfp beat', 'payrolls beat', 'dxy rise', 'dollar strength', 'ecb dovish',
@@ -47,7 +46,6 @@ const USD_BULLISH_KW = [
   'inflation surge', 'fed tighten', 'dollar rally', 'usd strength',
 ];
 
-/** Keywords indicating USD bearish / EUR bullish sentiment */
 const USD_BEARISH_KW = [
   'fed dovish', 'rate cut', 'rate decrease', 'weak gdp', 'weak jobs',
   'nfp miss', 'payrolls miss', 'dollar weakness', 'ecb hike', 'ecb hawkish',
@@ -55,7 +53,6 @@ const USD_BEARISH_KW = [
   'euro rally', 'cpi cool', 'inflation easing', 'fed pause', 'recession us',
 ];
 
-/** Keywords for filtering EUR/USD relevant news from general feed */
 const RELEVANCE_KW = [
   'eur', 'usd', 'euro', 'dollar', 'ecb', 'fed', 'federal reserve',
   'fomc', 'cpi', 'gdp', 'nfp', 'payroll', 'rate', 'inflation',
@@ -63,7 +60,6 @@ const RELEVANCE_KW = [
   'interest rate', 'central bank', 'treasury',
 ];
 
-/** High-impact event keywords for calendar */
 const HIGH_IMPACT_EVENTS = [
   'nonfarm', 'nfp', 'fomc', 'federal open', 'cpi', 'consumer price',
   'gdp', 'gross domestic', 'rate decision', 'unemployment', 'pmi',
@@ -71,11 +67,15 @@ const HIGH_IMPACT_EVENTS = [
 ];
 
 // ─────────────────────────────────────────────
-// IN-MEMORY CACHE
+// STATE
 // ─────────────────────────────────────────────
 
 let _newsCache     = { bundle: null, fetchedAt: 0 };
 let _calendarCache = { bundle: null, fetchedAt: 0 };
+
+// Circuit breaker
+let _authFailed    = false;
+let _authFailedKey = '';
 
 // ─────────────────────────────────────────────
 // PUBLIC API
@@ -83,11 +83,14 @@ let _calendarCache = { bundle: null, fetchedAt: 0 };
 
 /**
  * Returns aggregated news sentiment bundle.
+ * Uses cache if available. Respects circuit breaker.
  * Never throws.
  *
  * @returns {Promise<NewsBundle>}
  */
 export async function getNewsBundle() {
+  const key = _getApiKey();
+
   // 1. Memory cache
   if (_newsCache.bundle && Date.now() - _newsCache.fetchedAt < TTL.NEWS_MEM) {
     return { ..._newsCache.bundle, data_source: 'cached' };
@@ -100,33 +103,50 @@ export async function getNewsBundle() {
     return { ...stored.bundle, data_source: 'cached' };
   }
 
-  // 3. Live fetch
-  const key = _getApiKey();
+  // 3. No valid cache — check if we should make a live request
   if (!key) {
     if (stored?.bundle) return { ...stored.bundle, data_source: 'stale' };
     return _stubNewsBundle();
   }
 
+  // Circuit breaker
+  if (_authFailed && _authFailedKey === key) {
+    if (stored?.bundle) return { ...stored.bundle, data_source: 'stale' };
+    return _stubNewsBundle();
+  }
+
+  // 4. Live fetch
   try {
     const articles = await _fetchNews(key);
     const bundle   = _aggregateSentiment(articles);
     _newsCache = { bundle, fetchedAt: Date.now() };
     _saveCache(STORAGE_KEY_NEWS, bundle);
+    _authFailed    = false;
+    _authFailedKey = '';
     return { ...bundle, data_source: 'live' };
   } catch (err) {
-    console.warn('[FinnhubService] News fetch failed:', err.message);
+    if (_isAuthError(err)) {
+      _authFailed    = true;
+      _authFailedKey = key;
+      console.warn('[FinnhubService] Auth failed — news requests paused:', err.message);
+    } else {
+      console.warn('[FinnhubService] News fetch failed:', err.message);
+    }
     if (stored?.bundle) return { ...stored.bundle, data_source: 'stale' };
     return _stubNewsBundle();
   }
 }
 
 /**
- * Returns economic calendar bundle (upcoming high-impact events).
+ * Returns economic calendar bundle.
+ * Uses cache if available. Respects circuit breaker.
  * Never throws.
  *
  * @returns {Promise<CalendarBundle>}
  */
 export async function getCalendarBundle() {
+  const key = _getApiKey();
+
   // 1. Memory cache
   if (_calendarCache.bundle && Date.now() - _calendarCache.fetchedAt < TTL.CAL_MEM) {
     return { ..._calendarCache.bundle, data_source: 'cached' };
@@ -139,13 +159,19 @@ export async function getCalendarBundle() {
     return { ...stored.bundle, data_source: 'cached' };
   }
 
-  // 3. Live fetch
-  const key = _getApiKey();
+  // 3. No valid cache
   if (!key) {
     if (stored?.bundle) return { ...stored.bundle, data_source: 'stale' };
     return _stubCalendarBundle();
   }
 
+  // Circuit breaker
+  if (_authFailed && _authFailedKey === key) {
+    if (stored?.bundle) return { ...stored.bundle, data_source: 'stale' };
+    return _stubCalendarBundle();
+  }
+
+  // 4. Live fetch
   try {
     const events = await _fetchCalendar(key);
     const bundle = _processCalendar(events);
@@ -153,7 +179,13 @@ export async function getCalendarBundle() {
     _saveCache(STORAGE_KEY_CAL, bundle);
     return { ...bundle, data_source: 'live' };
   } catch (err) {
-    console.warn('[FinnhubService] Calendar fetch failed:', err.message);
+    if (_isAuthError(err)) {
+      _authFailed    = true;
+      _authFailedKey = key;
+      console.warn('[FinnhubService] Auth failed — calendar requests paused:', err.message);
+    } else {
+      console.warn('[FinnhubService] Calendar fetch failed:', err.message);
+    }
     if (stored?.bundle) return { ...stored.bundle, data_source: 'stale' };
     return _stubCalendarBundle();
   }
@@ -167,8 +199,15 @@ export function hasApiKey() {
 }
 
 /**
- * Tests the Finnhub API key.
- * Uses /news?category=general (free tier endpoint).
+ * @returns {boolean}
+ */
+export function isAuthFailed() {
+  return _authFailed && _authFailedKey === _getApiKey();
+}
+
+/**
+ * Tests the Finnhub API key using the general news endpoint (free tier).
+ * On success, resets the circuit breaker.
  * Never throws.
  *
  * @param {string} [key]
@@ -179,21 +218,29 @@ export async function testConnection(key) {
   if (!k) return { valid: false, message: 'No Finnhub API key provided' };
 
   try {
-    // Use general news endpoint — available on free tier
     const url = `${FINNHUB_BASE}/news?category=general&token=${k}`;
     const res  = await _fetchWithTimeout(url, 8000);
 
     if (res.status === 401) {
+      _authFailed    = true;
+      _authFailedKey = k;
       return { valid: false, message: 'Invalid API key (401 Unauthorized)' };
     }
     if (res.status === 403) {
-      return { valid: false, message: 'Access forbidden (403) — check key permissions' };
+      return { valid: false, message: 'Access forbidden (403) — check plan permissions' };
     }
 
     const json = await res.json();
-    if (json.error) return { valid: false, message: json.error };
+    if (json.error) {
+      _authFailed    = true;
+      _authFailedKey = k;
+      return { valid: false, message: json.error };
+    }
     if (Array.isArray(json)) {
       try { localStorage.setItem(STORAGE_KEY_API, k); } catch (_) {}
+      // Reset circuit breaker on success
+      _authFailed    = false;
+      _authFailedKey = '';
       return { valid: true, message: `Connected to Finnhub (${json.length} articles)` };
     }
     return { valid: false, message: 'Unexpected Finnhub response format' };
@@ -203,7 +250,7 @@ export async function testConnection(key) {
 }
 
 /**
- * Clears all Finnhub caches.
+ * Clears in-memory and localStorage caches.
  */
 export function clearCache() {
   _newsCache     = { bundle: null, fetchedAt: 0 };
@@ -212,40 +259,36 @@ export function clearCache() {
   try { localStorage.removeItem(STORAGE_KEY_CAL);  } catch (_) {}
 }
 
+/**
+ * Resets the circuit breaker. Call when a new key has been saved.
+ */
+export function clearAuthFailure() {
+  _authFailed    = false;
+  _authFailedKey = '';
+}
+
 // ─────────────────────────────────────────────
-// NEWS FETCHING + PROCESSING
+// NEWS FETCHING
 // ─────────────────────────────────────────────
 
 async function _fetchNews(key) {
-  // BUG-04 FIX: Use category=general (free tier).
-  // category=forex requires premium subscription → 401 on free keys.
+  // BUG-04 FIX: category=general is free tier.
+  // category=forex requires premium → 401.
   const url = `${FINNHUB_BASE}/news?category=general&token=${key}`;
   const res  = await _fetchWithTimeout(url, 8000);
 
-  if (res.status === 401) {
-    throw new Error('Finnhub 401 — invalid key or free tier limit reached');
-  }
-  if (res.status === 403) {
-    throw new Error('Finnhub 403 — endpoint not available on this plan');
-  }
-  if (res.status === 429) {
-    throw new Error('Finnhub 429 — rate limited (free: 60 req/min)');
-  }
+  if (res.status === 401) throw new Error('Finnhub 401 Unauthorized');
+  if (res.status === 403) throw new Error('Finnhub 403 Forbidden');
+  if (res.status === 429) throw new Error('Finnhub 429 Rate limited');
 
   const json = await res.json();
-  if (json.error) throw new Error(`Finnhub error: ${json.error}`);
+  if (json.error) throw new Error(`Finnhub: ${json.error}`);
   if (!Array.isArray(json)) throw new Error('Non-array news response');
   return json;
 }
 
-/**
- * Aggregates news articles into sentiment metrics.
- * Filters general feed for EUR/USD relevant articles by keyword.
- * Uses exponential time decay: weight = exp(−age_hours / 24).
- */
 function _aggregateSentiment(articles) {
-  const now = Date.now();
-  // Filter: only articles mentioning EUR/USD relevant terms
+  const now      = Date.now();
   const relevant = articles.filter(a => _isRelevant(a));
 
   let net24h = 0, net7d = 0, net30d = 0;
@@ -267,7 +310,6 @@ function _aggregateSentiment(articles) {
     _extractTheme(a.headline, themes);
   }
 
-  // Previous 24h window for narrative shift
   const prev24hArticles = relevant.filter(a => {
     const ageH = (now - a.datetime * 1000) / 3600000;
     return ageH >= 24 && ageH < 48;
@@ -285,7 +327,7 @@ function _aggregateSentiment(articles) {
     ? Math.round((now - mostRecent.datetime * 1000) / 3600000)
     : 24;
 
-  const veryRecent  = relevant.find(a => (now - a.datetime * 1000) < 2 * 60 * 1000);
+  const veryRecent   = relevant.find(a => (now - a.datetime * 1000) < 2 * 60 * 1000);
   const newsBlackout = Boolean(veryRecent && Math.abs(_scoreHeadline(veryRecent.headline)) >= 15);
 
   return {
@@ -320,7 +362,7 @@ function _scoreHeadline(text) {
 function _extractTheme(headline, themes) {
   const lower = headline.toLowerCase();
   const groups = {
-    'USD Strength': ['dollar rally', 'usd strength', 'dollar strength', 'dxy'],
+    'USD Strength': ['dollar rally', 'usd strength', 'dollar strength'],
     'Fed Hawkish':  ['fed hike', 'rate hike', 'fomc hike', 'hawkish'],
     'ECB Dovish':   ['ecb cut', 'ecb dovish', 'eu slowdown'],
     'ECB Hawkish':  ['ecb hike', 'ecb hawkish'],
@@ -343,19 +385,18 @@ function _topTheme(themes) {
 }
 
 // ─────────────────────────────────────────────
-// CALENDAR FETCHING + PROCESSING
+// CALENDAR FETCHING
 // ─────────────────────────────────────────────
 
 async function _fetchCalendar(key) {
   const today    = new Date();
   const fromDate = _formatDate(today);
   const toDate   = _formatDate(new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000));
+  const url      = `${FINNHUB_BASE}/calendar/economic?from=${fromDate}&to=${toDate}&token=${key}`;
+  const res      = await _fetchWithTimeout(url, 8000);
 
-  const url = `${FINNHUB_BASE}/calendar/economic?from=${fromDate}&to=${toDate}&token=${key}`;
-  const res  = await _fetchWithTimeout(url, 8000);
-
-  if (res.status === 401) throw new Error('Finnhub calendar 401 — invalid key');
-  if (res.status === 403) throw new Error('Finnhub calendar 403 — plan limitation');
+  if (res.status === 401) throw new Error('Finnhub calendar 401 Unauthorized');
+  if (res.status === 403) throw new Error('Finnhub calendar 403 Forbidden');
 
   const json = await res.json();
   if (json.error) throw new Error(json.error);
@@ -370,25 +411,18 @@ function _processCalendar(events) {
     .filter(e => new Date(e.time).getTime() > now)
     .sort((a, b) => new Date(a.time) - new Date(b.time));
 
-  const nextEvent  = upcoming[0] ?? null;
-  const hoursUntil = nextEvent
+  const nextEvent      = upcoming[0] ?? null;
+  const hoursUntil     = nextEvent
     ? Math.max(0, (new Date(nextEvent.time).getTime() - now) / 3600000)
     : null;
-
-  const withinWindow  = hoursUntil !== null && hoursUntil < 4;
-  const impactLevel   = nextEvent ? (nextEvent.impact ?? 'low').toLowerCase() : 'low';
-  const confirmedHigh = nextEvent && _isHighImpactEvent(nextEvent.event ?? '');
+  const withinWindow   = hoursUntil !== null && hoursUntil < 4;
+  const impactLevel    = nextEvent ? (nextEvent.impact ?? 'low').toLowerCase() : 'low';
+  const confirmedHigh  = nextEvent && _isHighImpactEvent(nextEvent.event ?? '');
 
   const next24h = upcoming
     .filter(e => (new Date(e.time).getTime() - now) < 24 * 3600000)
     .slice(0, 5)
-    .map(e => ({
-      time:     e.time,
-      event:    e.event,
-      country:  e.country,
-      impact:   e.impact,
-      estimate: e.estimate,
-    }));
+    .map(e => ({ time: e.time, event: e.event, country: e.country, impact: e.impact }));
 
   return {
     upcoming_event_risk:  withinWindow && confirmedHigh,
@@ -407,8 +441,7 @@ function _isRelevantEvent(event) {
 }
 
 function _isHighImpactEvent(eventName) {
-  const lower = eventName.toLowerCase();
-  return HIGH_IMPACT_EVENTS.some(kw => lower.includes(kw));
+  return HIGH_IMPACT_EVENTS.some(kw => eventName.toLowerCase().includes(kw));
 }
 
 // ─────────────────────────────────────────────
@@ -448,6 +481,12 @@ function _stubCalendarBundle() {
 // ─────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────
+
+function _isAuthError(err) {
+  const msg = err.message ?? '';
+  return msg.includes('401') || msg.includes('403') ||
+         msg.includes('Unauthorized') || msg.includes('Forbidden');
+}
 
 function _getApiKey() {
   try { return localStorage.getItem(STORAGE_KEY_API) || ''; } catch (_) { return ''; }
