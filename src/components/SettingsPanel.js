@@ -627,8 +627,19 @@ async function _testKey(service, key) {
     _testStatus  = result.valid ? 'ok' : 'fail';
     _testMessage = result.message;
 
-    if (result.valid && service === 'td') {
-      await AppState.refreshAll();
+    if (result.valid) {
+      // After any key validates successfully, clear caches and refresh data
+      // so the new key takes effect immediately without requiring a page reload.
+      if (service === 'td') {
+        await AppState.refreshAll();
+      }
+      // For FRED and Finnhub: clear MemoryAggregator caches and re-fetch.
+      // This converts the in-memory stub result into live data immediately.
+      if (service === 'fred' || service === 'finnhub') {
+        await MemoryAggregator.refresh();
+        // Re-render Settings to show updated status badges
+        render();
+      }
     }
   } catch (err) {
     _testStatus  = 'fail';

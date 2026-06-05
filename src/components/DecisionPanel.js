@@ -252,11 +252,59 @@ function _buildGatesTable(signal, lang) {
 function _buildScoreDisplay(signal, lang) {
   if (!signal) return '';
 
-  const score = signal.final_score      ?? 50;
-  const conf  = signal.final_confidence ?? 0;
-  const agree = signal.agents_agreeing  ?? 0;
+  const strength = signal.signal_strength ?? SIGNAL_STRENGTH.NO_TRADE;
+  const noTrade  = strength === SIGNAL_STRENGTH.NO_TRADE;
+  const score    = signal.final_score      ?? 50;
+  const conf     = signal.final_confidence ?? 0;
+  const agree    = signal.agents_agreeing  ?? 0;
 
-  // Determine score direction label
+  // BUG-07 FIX: when signal is NO_TRADE, show the reason instead of a
+  // misleading directional score + 0% confidence combination.
+  if (noTrade) {
+    const reasonKey = signal.no_trade_reason ?? 'NO_TRADE';
+    const reasonLabels = {
+      LOW_CONFIDENCE:         lang === 'zh' ? '置信度不足' : 'Low Confidence',
+      MTF_NOT_ALIGNED:        lang === 'zh' ? '多周期未对齐' : 'MTF Not Aligned',
+      RR_TOO_LOW:             lang === 'zh' ? 'R/R比率过低'  : 'R/R Too Low',
+      AGENT_DISAGREEMENT:     lang === 'zh' ? '代理意见分歧'  : 'Agent Disagreement',
+      DRAWDOWN_HALT:          lang === 'zh' ? '回撤止损'      : 'Drawdown Halt',
+      VOLATILE_REGIME_BLOCKED:lang === 'zh' ? '高波动性阻断'  : 'Volatile Regime Blocked',
+      NO_TRADE:               lang === 'zh' ? '无交易信号'    : 'No Trade Signal',
+    };
+    const reasonText = reasonLabels[reasonKey] ?? reasonKey;
+    return `
+      <div class="score-display" style="grid-template-columns:1fr;text-align:center">
+        <div style="padding:var(--gap-md)">
+          <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;
+                      letter-spacing:0.10em;color:var(--text4);margin-bottom:var(--gap-sm)">
+            ${lang === 'zh' ? '决策结果' : 'Decision'}
+          </div>
+          <div style="font-size:1.5rem;font-weight:700;color:var(--amber-dim);margin-bottom:4px">
+            ${lang === 'zh' ? '暂缓交易' : 'NO TRADE'}
+          </div>
+          <div style="font-size:0.84rem;color:var(--text3);margin-bottom:var(--gap-sm)">
+            ${reasonText}
+          </div>
+          <div style="display:flex;justify-content:center;gap:var(--gap-xl);margin-top:var(--gap-sm)">
+            <div style="font-size:0.75rem;color:var(--text3)">
+              ${lang === 'zh' ? '方向分' : 'Dir Score'}:
+              <span style="font-family:var(--font-num);color:var(--text2);font-weight:600">${score}</span>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text3)">
+              ${lang === 'zh' ? '置信度' : 'Confidence'}:
+              <span style="font-family:var(--font-num);color:var(--text2);font-weight:600">${conf}%</span>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text3)">
+              ${lang === 'zh' ? '代理一致' : 'Agents'}:
+              <span style="font-family:var(--font-num);color:var(--text2);font-weight:600">${agree}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Normal actionable signal: show full score display
   const direction = score > 55 ? t('signal.sell') : score < 45 ? t('signal.buy') : t('signal.neutral');
   const scoreCls  = score > 55 ? 'bear' : score < 45 ? 'bull' : 'neutral';
 
